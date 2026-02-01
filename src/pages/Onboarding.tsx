@@ -309,7 +309,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           onClose={() => setShowExitModal(false)}
           onConfirm={() => {
             setShowExitModal(false);
-            // Could navigate to external site or close app
+            window.location.href = 'https://www.hallos.net/dashboard';
           }}
         />
       )}
