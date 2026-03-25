@@ -34,7 +34,7 @@ const TournamentArena = ({ onHistoryClick, onHostClick }: TournamentArenaProps) 
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 sm:mb-8">
         <div>
           <h1 className="text-xl sm:text-3xl font-bold text-primary mb-1 sm:mb-2">Tournament Arena</h1>
-          <p className="text-xs sm:text-base text-muted-foreground">Compete for Zeta points (ZP) and exchange your winnings for real rewards</p>
+          <p className="text-xs sm:text-base text-muted-foreground">Compete for Chuta points (CP) and exchange your winnings for real rewards</p>
         </div>
         <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
           <Button
@@ -94,12 +94,12 @@ const TournamentArena = ({ onHistoryClick, onHostClick }: TournamentArenaProps) 
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">PRIZE POOL</p>
                   <p className="text-sm sm:text-lg font-bold text-yellow-400 flex items-center gap-1">
                     <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
-                    {featuredTournament.prizePool.toLocaleString()} ZP
+                    {featuredTournament.prizePool.toLocaleString()} CP
                   </p>
                 </div>
                 <div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">ENTRY FEE</p>
-                  <p className="text-sm sm:text-lg font-bold text-foreground">{featuredTournament.entry} ZP</p>
+                  <p className="text-sm sm:text-lg font-bold text-foreground">{featuredTournament.entry} CP</p>
                 </div>
                 <div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">FORMAT</p>
@@ -184,11 +184,11 @@ const TournamentArena = ({ onHistoryClick, onHostClick }: TournamentArenaProps) 
                       {tournament.format}
                     </span>
                   </td>
-                  <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">{tournament.entry} ZP</td>
+                  <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">{tournament.entry} CP</td>
                   <td className="p-2 sm:p-4">
                     <span className="text-yellow-400 flex items-center gap-1 text-xs sm:text-base whitespace-nowrap">
                       <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
-                      {tournament.prizePool.toLocaleString()} ZP
+                      {tournament.prizePool.toLocaleString()} CP
                     </span>
                   </td>
                   <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">{tournament.quota.current}/{tournament.quota.max}</td>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Swords } from "lucide-react";
 import ChallengeIntro from "@/components/gameplay/ChallengeIntro";
 import GameplayHeader from "@/components/gameplay/GameplayHeader";
@@ -8,24 +9,28 @@ import ResultsHeader from "@/components/results/ResultsHeader";
 import ResultsScoreCard from "@/components/results/ResultsScoreCard";
 import ResultsBreakdown from "@/components/results/ResultsBreakdown";
 import ResultsActions from "@/components/results/ResultsActions";
-import { sampleQuestions, type Question, type GameResult } from "@/data/quizData";
+import { sampleQuestions, type GameResult } from "@/data/quizData";
+import { avatars } from "@/data/gameData";
 
 type GameState = "intro" | "playing" | "results";
 type AnswerState = "default" | "selected" | "correct" | "wrong" | "opponent-wrong";
 
-interface GameplayProps {
-  player1: {
-    name: string;
-    avatar: string;
-  };
-  player2: {
-    name: string;
-    avatar: string;
-  };
-  onReturnToLobby: () => void;
-}
+const Gameplay = () => {
+  const navigate = useNavigate();
 
-const Gameplay = ({ player1, player2, onReturnToLobby }: GameplayProps) => {
+  // Read match data from sessionStorage
+  const matchRaw = sessionStorage.getItem("currentMatch");
+  const match = matchRaw ? JSON.parse(matchRaw) : null;
+
+  const player1 = match?.player1 ?? { name: "You", avatar: avatars[0] };
+  const player2 = match?.player2 ?? { name: "Opponent", avatar: avatars[1] };
+
+  // Redirect if no match data (e.g. direct URL access)
+  useEffect(() => {
+    if (!matchRaw) {
+      navigate("/lobby", { replace: true });
+    }
+  }, [matchRaw, navigate]);
   const [gameState, setGameState] = useState<GameState>("intro");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(10);
@@ -224,7 +229,10 @@ const Gameplay = ({ player1, player2, onReturnToLobby }: GameplayProps) => {
           <div className="w-full">
             <ResultsActions
               onShareResults={() => {}}
-              onReturnToLobby={onReturnToLobby}
+              onReturnToLobby={() => {
+                sessionStorage.removeItem("currentMatch");
+                navigate("/lobby");
+              }}
             />
           </div>
         </main>

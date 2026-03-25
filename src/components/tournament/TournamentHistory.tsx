@@ -58,7 +58,7 @@ const TournamentHistory = ({ onBack }: TournamentHistoryProps) => {
         {/* Total ZP Earned */}
         <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-2 sm:mb-4">
-            <span className="text-muted-foreground text-xs sm:text-sm">Total ZP Earned</span>
+            <span className="text-muted-foreground text-xs sm:text-sm">Total CP Earned</span>
             <div className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-yellow-500/20 flex items-center justify-center">
               <Zap className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-yellow-400" />
             </div>
@@ -100,7 +100,7 @@ const TournamentHistory = ({ onBack }: TournamentHistoryProps) => {
                 <th className="text-left p-2 sm:p-4">Format</th>
                 <th className="text-left p-2 sm:p-4">Entry</th>
                 <th className="text-left p-2 sm:p-4">Result</th>
-                <th className="text-right p-2 sm:p-4">ZP Won/Lost</th>
+                <th className="text-right p-2 sm:p-4">CP Won/Lost</th>
               </tr>
             </thead>
             <tbody>
@@ -120,7 +120,7 @@ const TournamentHistory = ({ onBack }: TournamentHistoryProps) => {
                       {item.format}
                     </span>
                   </td>
-                  <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">{item.entry} ZP</td>
+                  <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">{item.entry} CP</td>
                   <td className="p-2 sm:p-4">
                     <span className={`text-xs sm:text-base whitespace-nowrap ${item.result.includes("1st") || item.result.includes("2nd") 
                       ? "text-accent" 
@@ -131,7 +131,7 @@ const TournamentHistory = ({ onBack }: TournamentHistoryProps) => {
                   </td>
                   <td className="p-2 sm:p-4 text-right">
                     <span className={`text-xs sm:text-base whitespace-nowrap ${item.zpWonLost > 0 ? "text-green-400" : "text-red-400"}`}>
-                      {item.zpWonLost > 0 ? "+" : ""}{item.zpWonLost} ZP
+                      {item.zpWonLost > 0 ? "+" : ""}{item.zpWonLost} CP
                     </span>
                   </td>
                 </tr>

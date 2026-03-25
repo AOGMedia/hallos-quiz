@@ -86,7 +86,7 @@ const ChallengeIntro = ({ player1, player2, onComplete }: ChallengeIntroProps) =
       {/* Scoreboard */}
       <div className="animate-fade-in w-full max-w-xl">
         <div className="flex flex-col items-center">
-          <span className="text-[10px] sm:text-xs text-muted-foreground mb-3 sm:mb-4">Zeta points won</span>
+          <span className="text-[10px] sm:text-xs text-muted-foreground mb-3 sm:mb-4">Chuta points won</span>
           <div className="bg-card border border-border rounded-xl px-4 sm:px-12 py-4 sm:py-6 w-full">
             <div className="flex items-center justify-between sm:justify-center gap-2 sm:gap-12">
               <div className="flex items-center gap-2 sm:gap-3">

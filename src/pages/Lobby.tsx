@@ -1,36 +1,42 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import LobbyPlayerCard from "@/components/lobby/LobbyPlayerCard";
 import ChallengeModal from "@/components/modals/ChallengeModal";
 import ChallengeStatusModal from "@/components/modals/ChallengeStatusModal";
 import ExitConfirmModal from "@/components/modals/ExitConfirmModal";
-import Gameplay from "@/pages/Gameplay";
 import Tournament from "@/pages/Tournament";
-import { mockPlayers } from "@/data/gameData";
+import ChutaWallet from "@/pages/ChutaWallet";
+import Identity from "@/pages/Identity";
+import { mockPlayers, avatars } from "@/data/gameData";
+import { soundEngine } from "@/lib/soundEngine";
 
-interface LobbyProps {
-  userProfile: {
-    nickname: string;
-    avatar: string;
-  };
-  onExit: () => void;
-}
-
-type NavItem = "lobby" | "tournament" | "leaderboard" | "cashout";
+type NavItem = "lobby" | "tournament" | "leaderboard" | "cashout" | "identity";
 type ModalState = "none" | "challenge" | "confirm" | "waiting" | "timeout" | "rejected" | "accepted" | "exit";
-type ViewState = "lobby" | "gameplay";
 
-const Lobby = ({ userProfile, onExit }: LobbyProps) => {
+const Lobby = () => {
+  const navigate = useNavigate();
+  const [userProfile, setUserProfile] = useState({ nickname: "", avatar: avatars[0] });
   const [activeNav, setActiveNav] = useState<NavItem>("lobby");
   const [modalState, setModalState] = useState<ModalState>("none");
   const [selectedPlayer, setSelectedPlayer] = useState<typeof mockPlayers[0] | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [viewState, setViewState] = useState<ViewState>("lobby");
+
+  // Load profile from sessionStorage — redirect to onboarding if missing
+  useEffect(() => {
+    const stored = sessionStorage.getItem("userProfile");
+    if (!stored) {
+      navigate("/", { replace: true });
+      return;
+    }
+    setUserProfile(JSON.parse(stored));
+  }, [navigate]);
 
   const handleChallenge = (player: typeof mockPlayers[0]) => {
     setSelectedPlayer(player);
     setModalState("challenge");
+    soundEngine.startBellLoop(); // bell rings throughout setup
   };
 
   const handleChallengeSubmit = (categories: string[]) => {
@@ -40,25 +46,25 @@ const Lobby = ({ userProfile, onExit }: LobbyProps) => {
 
   const handleConfirmChallenge = () => {
     setModalState("waiting");
-    // Simulate waiting and then showing accepted result
     setTimeout(() => {
       setModalState("accepted");
-      // After showing accepted, transition to gameplay
       setTimeout(() => {
+        soundEngine.stopBellLoop();
+        soundEngine.play("start_challenge");
+        // Save match data so /game page survives refresh
+        sessionStorage.setItem("currentMatch", JSON.stringify({
+          player1: { name: userProfile.nickname || "You", avatar: userProfile.avatar },
+          player2: { name: selectedPlayer!.name, avatar: selectedPlayer!.avatar },
+        }));
         setModalState("none");
-        setViewState("gameplay");
+        navigate("/game");
       }, 2000);
     }, 2000);
   };
 
   const closeModal = () => {
+    soundEngine.stopBellLoop(); // stop bell if user cancels
     setModalState("none");
-    setSelectedPlayer(null);
-    setSelectedCategories([]);
-  };
-
-  const handleReturnToLobby = () => {
-    setViewState("lobby");
     setSelectedPlayer(null);
     setSelectedCategories([]);
   };
@@ -69,25 +75,9 @@ const Lobby = ({ userProfile, onExit }: LobbyProps) => {
 
   const handleExitConfirm = () => {
     setModalState("none");
-    onExit();
+    sessionStorage.removeItem("userProfile");
+    navigate("/");
   };
-
-  // Show gameplay view when challenge is accepted
-  if (viewState === "gameplay" && selectedPlayer) {
-    return (
-      <Gameplay
-        player1={{
-          name: userProfile.nickname || "King_Minkk",
-          avatar: userProfile.avatar,
-        }}
-        player2={{
-          name: selectedPlayer.name,
-          avatar: selectedPlayer.avatar,
-        }}
-        onReturnToLobby={handleReturnToLobby}
-      />
-    );
-  }
 
   // Render content based on active nav
   const renderMainContent = () => {
@@ -102,12 +92,9 @@ const Lobby = ({ userProfile, onExit }: LobbyProps) => {
           </main>
         );
       case "cashout":
-        return (
-          <main className="flex-1 overflow-y-auto p-6">
-            <h1 className="text-2xl font-bold text-primary mb-4">Cashout</h1>
-            <p className="text-muted-foreground">Coming soon...</p>
-          </main>
-        );
+        return <ChutaWallet />;
+      case "identity":
+        return <Identity />;
       default:
         return (
           <main className="flex-1 overflow-y-auto p-6">

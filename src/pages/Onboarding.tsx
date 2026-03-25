@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Users, Swords, BookOpen, Play, Zap } from "lucide-react";
 import AahbibiLogo from "@/components/icons/AahbibiLogo";
 import OnboardingSlide from "@/components/onboarding/OnboardingSlide";
@@ -8,11 +9,8 @@ import CategoryBadge from "@/components/onboarding/CategoryBadge";
 import ExitConfirmModal from "@/components/modals/ExitConfirmModal";
 import { categories, mockPlayers } from "@/data/gameData";
 
-interface OnboardingProps {
-  onComplete: () => void;
-}
-
-const Onboarding = ({ onComplete }: OnboardingProps) => {
+const Onboarding = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(["General Knowledge", "Economics", "History"]);
   const [showExitModal, setShowExitModal] = useState(false);
@@ -21,12 +19,12 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     if (step < 4) {
       setStep(step + 1);
     } else {
-      onComplete();
+      navigate("/profile");
     }
   };
 
   const handleSkip = () => {
-    onComplete();
+    navigate("/profile");
   };
 
   const toggleCategory = (cat: string) => {
@@ -97,7 +95,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                     <img src={mockPlayers[0].avatar} className="w-8 h-8 rounded-full" alt="" />
                     <div>
                       <span className="font-medium text-sm">BrainBlitz</span>
-                      <p className="text-xs text-muted-foreground">1300 Zeta Points</p>
+                      <p className="text-xs text-muted-foreground ">1300 Chuta Points</p>
                     </div>
                   </div>
                   <div className="bg-secondary rounded-lg p-3">
@@ -132,7 +130,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
                       </div>
                       <div className="space-y-1 mb-2">
                         <p className="text-[10px] sm:text-xs text-warning flex items-center gap-1">
-                          <Zap className="w-3 h-3" /> {player.points} Zeta Points
+                          <Zap className="w-3 h-3" /> {player.points} Chuta Points
                         </p>
                         <p className="text-[10px] sm:text-xs text-muted-foreground">
                           ⊘ {player.wins} Wins / {player.losses} Losses

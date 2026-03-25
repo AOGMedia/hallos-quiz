@@ -79,7 +79,7 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
               <h3 className="text-base sm:text-xl font-semibold">{player.name}</h3>
               <div className="flex items-center gap-1 sm:gap-2 text-muted-foreground text-xs sm:text-base">
                 <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-warning" />
-                <span>{player.points.toLocaleString()} Zeta Points</span>
+                <span>{player.points.toLocaleString()} Chuta Points</span>
               </div>
             </div>
           </div>
@@ -150,7 +150,7 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
         <div className="flex items-center justify-between p-3 sm:p-4 bg-secondary rounded-xl mb-4 sm:mb-6">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-warning" />
-            <span className="font-medium text-sm sm:text-base">Wager Zeta</span>
+            <span className="font-medium text-sm sm:text-base">Wager Chuta</span>
           </div>
           <button
             onClick={() => setWagerEnabled(!wagerEnabled)}

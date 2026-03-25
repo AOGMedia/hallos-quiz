@@ -24,7 +24,7 @@ const GameplayHeader = ({ player1, player2 }: GameplayHeaderProps) => {
 
       {/* Score display */}
       <div className="flex flex-col items-center">
-        <span className="text-[10px] sm:text-xs text-muted-foreground mb-2">Zeta points won</span>
+        <span className="text-[10px] sm:text-xs text-muted-foreground mb-2">Chuta points won</span>
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-2">
             <img
