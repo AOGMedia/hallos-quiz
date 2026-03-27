@@ -1,10 +1,7 @@
-export interface WalletTransaction {
-  id: string;
-  type: "credit" | "debit";
-  description: string;
-  amount: number;
-  date: string;
-}
+import type { ChutaTransaction, TransactionType } from "@/lib/api/chutaWallet";
+
+// Re-export so components import from one place
+export type { ChutaTransaction as WalletTransaction };
 
 export interface PurchasePackage {
   id: string;
@@ -13,13 +10,32 @@ export interface PurchasePackage {
   bonus: string | null;
 }
 
-export const mockTransactions: WalletTransaction[] = [
-  { id: "1", type: "credit", description: "Tournament win — Science Sprints", amount: 900, date: "Jan 05, 2026" },
-  { id: "2", type: "debit", description: "Tournament entry — General Knowledge", amount: -200, date: "Jan 02, 2026" },
-  { id: "3", type: "credit", description: "Challenge win vs BrainBlitz", amount: 50, date: "Dec 28, 2025" },
-  { id: "4", type: "debit", description: "Tournament entry — Math Duel", amount: -150, date: "Dec 23, 2025" },
-  { id: "5", type: "credit", description: "Top 10 finish — Programming Championship", amount: 500, date: "Dec 19, 2025" },
-  { id: "6", type: "credit", description: "Final round — English & Grammar Wars", amount: 300, date: "Dec 09, 2025" },
+// Human-readable labels for each transaction type
+export const TX_LABELS: Record<TransactionType, string> = {
+  initial_bonus:     "Welcome bonus",
+  purchase:          "CP purchase",
+  withdrawal:        "CP withdrawal",
+  match_wager:       "Match wager",
+  match_win:         "Match win",
+  match_refund:      "Match refund",
+  tournament_entry:  "Tournament entry",
+  tournament_prize:  "Tournament prize",
+  tournament_refund: "Tournament refund",
+};
+
+// Types that represent incoming CP (shown as positive / green)
+export const CREDIT_TYPES = new Set<TransactionType>([
+  "initial_bonus", "match_win", "match_refund",
+  "tournament_prize", "tournament_refund",
+]);
+
+export const mockTransactions: ChutaTransaction[] = [
+  { id: "1", type: "tournament_prize",  amount: 900,  balanceAfter: 900,  createdAt: "2026-01-05T10:00:00.000Z" },
+  { id: "2", type: "tournament_entry",  amount: -200, balanceAfter: 700,  createdAt: "2026-01-02T10:00:00.000Z" },
+  { id: "3", type: "match_win",         amount: 50,   balanceAfter: 750,  createdAt: "2025-12-28T10:00:00.000Z" },
+  { id: "4", type: "tournament_entry",  amount: -150, balanceAfter: 600,  createdAt: "2025-12-23T10:00:00.000Z" },
+  { id: "5", type: "tournament_prize",  amount: 500,  balanceAfter: 1100, createdAt: "2025-12-19T10:00:00.000Z" },
+  { id: "6", type: "match_win",         amount: 300,  balanceAfter: 1400, createdAt: "2025-12-09T10:00:00.000Z" },
 ];
 
 // NGN amounts sent to API — API converts: NGN ÷ 1400 × 100 = Chuta
@@ -31,7 +47,6 @@ export const purchasePackages: PurchasePackage[] = [
   { id: "5", cp: 3571, price: "₦50,000", bonus: null },
 ];
 
-// NGN amounts corresponding to each package (sent to API)
 export const packageNgnAmounts: Record<string, number> = {
   "1": 1400,
   "2": 5000,
@@ -40,7 +55,5 @@ export const packageNgnAmounts: Record<string, number> = {
   "5": 50000,
 };
 
-// Conversion: 1 CP = 14 NGN (NGN ÷ 1400 × 100)
 export const CP_TO_NGN = 14;
-
-export const MIN_WITHDRAW = 1000; // API minimum: 1000 Chuta
+export const MIN_WITHDRAW = 1000;

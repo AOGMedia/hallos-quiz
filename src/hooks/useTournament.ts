@@ -1,0 +1,93 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import {
+  getTournaments,
+  getTournamentDetail,
+  getTournamentLeaderboard,
+  registerForTournament,
+  unregisterFromTournament,
+  type GetTournamentsParams,
+} from "@/lib/api/tournament";
+import { useChutaWalletStore } from "@/store/chutaWalletStore";
+import { useTournamentStore } from "@/store/tournamentStore";
+
+export const TOURNAMENT_KEYS = {
+  list:        (p: GetTournamentsParams) => ["tournaments", "list", p] as const,
+  detail:      (id: string)             => ["tournaments", "detail", id] as const,
+  leaderboard: (id: string)             => ["tournaments", "leaderboard", id] as const,
+};
+
+export function useTournaments(params: GetTournamentsParams = {}) {
+  const setTournaments = useTournamentStore((s) => s.setTournaments);
+
+  const query = useQuery({
+    queryKey: TOURNAMENT_KEYS.list(params),
+    queryFn: () => getTournaments(params),
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (query.data?.tournaments) setTournaments(query.data.tournaments);
+  }, [query.data, setTournaments]);
+
+  return query;
+}
+
+export function useTournamentDetail(id: string) {
+  const setSelectedDetail = useTournamentStore((s) => s.setSelectedDetail);
+
+  const query = useQuery({
+    queryKey: TOURNAMENT_KEYS.detail(id),
+    queryFn: () => getTournamentDetail(id),
+    enabled: !!id,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (query.data?.tournament) setSelectedDetail(query.data.tournament);
+  }, [query.data, setSelectedDetail]);
+
+  return query;
+}
+
+export function useTournamentLeaderboard(id: string) {
+  return useQuery({
+    queryKey: TOURNAMENT_KEYS.leaderboard(id),
+    queryFn: () => getTournamentLeaderboard(id),
+    enabled: !!id,
+    staleTime: 15_000,
+    refetchInterval: 15_000, // live standings
+  });
+}
+
+export function useRegisterTournament(id: string) {
+  const qc = useQueryClient();
+  const setBalance = useChutaWalletStore((s) => s.setBalance);
+  const markRegistered = useTournamentStore((s) => s.markRegistered);
+
+  return useMutation({
+    mutationFn: () => registerForTournament(id),
+    onSuccess: (data) => {
+      setBalance(data.newBalance);
+      markRegistered(id);
+      qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.detail(id) });
+      qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.list({}) });
+    },
+  });
+}
+
+export function useUnregisterTournament(id: string) {
+  const qc = useQueryClient();
+  const setBalance = useChutaWalletStore((s) => s.setBalance);
+  const markUnregistered = useTournamentStore((s) => s.markUnregistered);
+
+  return useMutation({
+    mutationFn: () => unregisterFromTournament(id),
+    onSuccess: (data) => {
+      setBalance(data.newBalance);
+      markUnregistered(id);
+      qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.detail(id) });
+      qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.list({}) });
+    },
+  });
+}

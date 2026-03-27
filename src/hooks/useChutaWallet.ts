@@ -7,6 +7,7 @@ import {
   withdrawChuta,
   type PurchaseChutaPayload,
   type WithdrawChutaPayload,
+  type ChutaTransactionsParams,
 } from "@/lib/api/chutaWallet";
 import { useChutaWalletStore } from "@/store/chutaWalletStore";
 
@@ -38,10 +39,10 @@ export function useChutaBalance() {
 
 // ── Transactions ──────────────────────────────────────────────────────────────
 
-export function useChutaTransactions() {
+export function useChutaTransactions(params: ChutaTransactionsParams = {}) {
   return useQuery({
-    queryKey: CHUTA_KEYS.transactions,
-    queryFn: fetchChutaTransactions,
+    queryKey: [...CHUTA_KEYS.transactions, params],
+    queryFn: () => fetchChutaTransactions(params),
     staleTime: 30_000,
   });
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Swords } from "lucide-react";
+import { Swords, Flag } from "lucide-react";
 import ChallengeIntro from "@/components/gameplay/ChallengeIntro";
 import GameplayHeader from "@/components/gameplay/GameplayHeader";
 import QuestionCard from "@/components/gameplay/QuestionCard";
@@ -9,8 +9,10 @@ import ResultsHeader from "@/components/results/ResultsHeader";
 import ResultsScoreCard from "@/components/results/ResultsScoreCard";
 import ResultsBreakdown from "@/components/results/ResultsBreakdown";
 import ResultsActions from "@/components/results/ResultsActions";
+import ForfeitModal from "@/components/modals/ForfeitModal";
 import { sampleQuestions, type GameResult } from "@/data/quizData";
 import { avatars } from "@/data/gameData";
+import { useForfeitMatch } from "@/hooks/useChallenge";
 
 type GameState = "intro" | "playing" | "results";
 type AnswerState = "default" | "selected" | "correct" | "wrong" | "opponent-wrong";
@@ -44,6 +46,9 @@ const Gameplay = () => {
   const [isOpponentTurn, setIsOpponentTurn] = useState(false);
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [totalPlayTime, setTotalPlayTime] = useState("07min 15secs");
+  const [showForfeit, setShowForfeit] = useState(false);
+  const { mutate: forfeit, isPending: isForfeiting } = useForfeitMatch();
+  const matchId = match?.matchId as string | undefined;
 
   const currentQuestion = sampleQuestions[currentQuestionIndex];
   const totalQuestions = sampleQuestions.length;
@@ -270,9 +275,7 @@ const Gameplay = () => {
               state={answerStates[option.value] || "default"}
               points={
                 answerStates[option.value] === "correct"
-                  ? currentQuestion.isBonus
-                    ? 7
-                    : 5
+                  ? currentQuestion.isBonus ? 7 : 5
                   : undefined
               }
               onClick={() => handleAnswerSelect(option.value)}
@@ -280,7 +283,44 @@ const Gameplay = () => {
             />
           ))}
         </div>
+
+        {/* Forfeit button */}
+        <div className="flex justify-center mt-6">
+          <button
+            onClick={() => setShowForfeit(true)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
+          >
+            <Flag className="w-3.5 h-3.5" />
+            Forfeit match
+          </button>
+        </div>
       </main>
+
+      {showForfeit && (
+        <ForfeitModal
+          penaltyAmount={0}
+          opponentName={player2.name}
+          onConfirm={() => {
+            if (matchId) {
+              forfeit(matchId, {
+                onSuccess: () => {
+                  sessionStorage.removeItem("currentMatch");
+                  navigate("/lobby");
+                },
+                onError: () => {
+                  // Even on error, leave the match
+                  sessionStorage.removeItem("currentMatch");
+                  navigate("/lobby");
+                },
+              });
+            } else {
+              sessionStorage.removeItem("currentMatch");
+              navigate("/lobby");
+            }
+          }}
+          onCancel={() => setShowForfeit(false)}
+        />
+      )}
     </div>
   );
 };

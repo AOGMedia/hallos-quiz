@@ -1,9 +1,19 @@
 import axios from "axios";
+import { getToken } from "@/store/authStore";
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   headers: { "Content-Type": "application/json" },
-  withCredentials: true, // send cookies for auth
+  withCredentials: true,
+});
+
+// Attach auth token from sessionStorage on every request
+apiClient.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 apiClient.interceptors.response.use(

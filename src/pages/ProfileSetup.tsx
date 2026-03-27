@@ -29,10 +29,16 @@ const ProfileSetup = () => {
   // Registration mutation
   const { mutate: register, isPending, isError, error } = useRegisterQuiz();
 
-  // Live avatar URL from DiceBear
-  const avatarUrl = useMemo(
+  // Preview URL — uses custom seed if picked from modal, otherwise nickname
+  const previewUrl = useMemo(
     () => getAvatarUrl(avatarSeed || nickname || "preview", style),
     [avatarSeed, nickname, style]
+  );
+
+  // Submission URL — always uses nickname as seed (backend requirement)
+  const avatarUrl = useMemo(
+    () => getAvatarUrl(nickname || "preview", style),
+    [nickname, style]
   );
 
   const isNicknameValid = NICKNAME_REGEX.test(nickname);
@@ -98,7 +104,7 @@ const ProfileSetup = () => {
           {/* Live avatar preview */}
           <div className="flex flex-col items-center gap-2">
             <img
-              src={avatarUrl}
+              src={previewUrl}
               alt="avatar preview"
               className="w-20 h-20 rounded-full border-2 border-primary bg-secondary"
             />

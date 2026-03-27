@@ -53,6 +53,11 @@ const EditForm = ({ onCancel }: { onCancel: () => void }) => {
   const isAvailable = !nicknameChanged ? true : checkData ? checkData.available : null;
 
   const avatarUrl = useMemo(
+    () => getAvatarUrl(nickname || profile.nickname, style),
+    [nickname, style, profile.nickname]
+  );
+
+  const previewUrl = useMemo(
     () => getAvatarUrl(avatarSeed || nickname || profile.nickname, style),
     [avatarSeed, nickname, style, profile.nickname]
   );
@@ -88,7 +93,7 @@ const EditForm = ({ onCancel }: { onCancel: () => void }) => {
         {/* Avatar preview */}
         <div className="flex items-center gap-4">
           <img
-            src={avatarUrl}
+            src={previewUrl}
             alt="preview"
             className="w-14 h-14 rounded-full border-2 border-primary bg-secondary flex-shrink-0"
           />

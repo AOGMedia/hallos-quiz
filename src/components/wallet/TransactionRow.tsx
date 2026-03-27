@@ -1,4 +1,5 @@
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { TX_LABELS, CREDIT_TYPES } from "@/data/walletData";
 import type { WalletTransaction } from "@/data/walletData";
 
 interface TransactionRowProps {
@@ -7,7 +8,11 @@ interface TransactionRowProps {
 }
 
 const TransactionRow = ({ tx, isLast }: TransactionRowProps) => {
-  const isCredit = tx.amount > 0;
+  const isCredit = CREDIT_TYPES.has(tx.type);
+  const label = TX_LABELS[tx.type] ?? tx.type.replace(/_/g, " ");
+  const date = new Date(tx.createdAt).toLocaleDateString("en-GB", {
+    day: "numeric", month: "short", year: "numeric",
+  });
 
   return (
     <li
@@ -16,27 +21,24 @@ const TransactionRow = ({ tx, isLast }: TransactionRowProps) => {
       }`}
     >
       <div className="flex items-center gap-3 min-w-0">
-        <div
-          className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-            isCredit ? "bg-green-500/20" : "bg-red-500/20"
-          }`}
-        >
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+          isCredit ? "bg-green-500/20" : "bg-red-500/20"
+        }`}>
           {isCredit
             ? <ArrowDownLeft className="w-4 h-4 text-green-400" />
             : <ArrowUpRight className="w-4 h-4 text-red-400" />}
         </div>
         <div className="min-w-0">
-          <p className="text-xs sm:text-sm text-foreground font-medium truncate">{tx.description}</p>
-          <p className="text-[10px] sm:text-xs text-muted-foreground">{tx.date}</p>
+          <p className="text-xs sm:text-sm text-foreground font-medium capitalize truncate">{label}</p>
+          <p className="text-[10px] sm:text-xs text-muted-foreground">{date}</p>
         </div>
       </div>
-      <span
-        className={`text-sm sm:text-base font-semibold whitespace-nowrap ml-3 ${
-          isCredit ? "text-green-400" : "text-red-400"
-        }`}
-      >
-        {isCredit ? "+" : ""}{tx.amount.toLocaleString()} CP
-      </span>
+      <div className="text-right ml-3 flex-shrink-0">
+        <span className={`text-sm sm:text-base font-semibold ${isCredit ? "text-green-400" : "text-red-400"}`}>
+          {isCredit ? "+" : ""}{tx.amount.toLocaleString()} CP
+        </span>
+        <p className="text-[10px] text-muted-foreground">bal: {tx.balanceAfter.toLocaleString()}</p>
+      </div>
     </li>
   );
 };

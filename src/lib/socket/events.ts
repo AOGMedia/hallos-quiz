@@ -39,12 +39,8 @@ export interface MatchEventHandlers {
   onError: (err: { message: string }) => void;
 }
 
-export const attachMatchEvents = (
-  token: string,
-  handlers: MatchEventHandlers
-): void => {
-  const socket = getSocket(token);
-
+export const attachMatchEvents = (handlers: MatchEventHandlers): void => {
+  const socket = getSocket();
   socket.on("match_started", handlers.onMatchStarted);
   socket.on("answer_recorded", handlers.onAnswerRecorded);
   socket.on("opponent_progress", handlers.onOpponentProgress);
@@ -52,12 +48,49 @@ export const attachMatchEvents = (
   socket.on("error", handlers.onError);
 };
 
-export const detachMatchEvents = (token: string): void => {
-  const socket = getSocket(token);
-
+export const detachMatchEvents = (): void => {
+  const socket = getSocket();
   socket.off("match_started");
   socket.off("answer_recorded");
   socket.off("opponent_progress");
   socket.off("match_ended");
   socket.off("error");
+};
+
+// ── Lobby events ──────────────────────────────────────────────────────────────
+
+export interface PlayersUpdatedPayload {
+  onlineCount: number;
+  timestamp: string;
+}
+
+export const onPlayersUpdated = (cb: (data: PlayersUpdatedPayload) => void): void => {
+  getSocket().on("players_updated", cb);
+};
+
+export const offPlayersUpdated = (): void => {
+  getSocket().off("players_updated");
+};
+
+// ── Incoming challenge event ──────────────────────────────────────────────────
+
+export interface IncomingChallengePayload {
+  challengeId: string;
+  challenger: {
+    userId: number;
+    nickname: string;
+    avatarUrl: string;
+    chutaBalance: number;
+  };
+  categoryName: string;
+  wagerAmount: number;
+  expiresAt: string;
+}
+
+export const onIncomingChallenge = (cb: (data: IncomingChallengePayload) => void): void => {
+  getSocket().on("challenge_received", cb);
+};
+
+export const offIncomingChallenge = (): void => {
+  getSocket().off("challenge_received");
 };

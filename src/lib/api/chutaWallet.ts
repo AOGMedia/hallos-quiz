@@ -7,6 +7,7 @@ export type ChutaCurrency = "NGN" | "USD";
 export interface ChutaBalanceResponse {
   success: boolean;
   balance: number;
+  lastUpdated?: string;
 }
 
 export interface PurchaseChutaPayload {
@@ -37,23 +38,46 @@ export interface WithdrawChutaResponse {
   transactionId: string;
 }
 
+export type TransactionType =
+  | "initial_bonus"
+  | "purchase"
+  | "withdrawal"
+  | "match_wager"
+  | "match_win"
+  | "match_refund"
+  | "tournament_entry"
+  | "tournament_prize"
+  | "tournament_refund";
+
 export interface ChutaTransaction {
   id: string;
-  type: "credit" | "debit";
-  description: string;
+  type: TransactionType;
   amount: number;
-  date: string;
+  balanceAfter: number;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface ChutaTransactionsParams {
+  type?: TransactionType;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface ChutaTransactionsResponse {
   success: boolean;
   transactions: ChutaTransaction[];
+  totalCount: number;
+  page: number;
+  totalPages: number;
 }
 
 // ── API functions ─────────────────────────────────────────────────────────────
 
 export const fetchChutaBalance = async (): Promise<ChutaBalanceResponse> => {
-  const res = await apiClient.get<ChutaBalanceResponse>("/api/quiz/currency/balance");
+  const res = await apiClient.get<ChutaBalanceResponse>("/api/quiz/user/balance");
   return res.data;
 };
 
@@ -77,10 +101,12 @@ export const withdrawChuta = async (
   return res.data;
 };
 
-export const fetchChutaTransactions =
-  async (): Promise<ChutaTransactionsResponse> => {
-    const res = await apiClient.get<ChutaTransactionsResponse>(
-      "/api/quiz/currency/transactions"
-    );
-    return res.data;
-  };
+export const fetchChutaTransactions = async (
+  params: ChutaTransactionsParams = {}
+): Promise<ChutaTransactionsResponse> => {
+  const res = await apiClient.get<ChutaTransactionsResponse>(
+    "/api/quiz/user/transactions",
+    { params: { page: 1, limit: 20, ...params } }
+  );
+  return res.data;
+};

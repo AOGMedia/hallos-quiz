@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Users, Swords, BookOpen, Play, Zap } from "lucide-react";
 import AahbibiLogo from "@/components/icons/AahbibiLogo";

@@ -23,10 +23,10 @@ const ChutaWallet = () => {
   const transactions = txData?.transactions ?? mockTransactions;
 
   const totalEarned = transactions
-    .filter((t) => t.amount > 0)
-    .reduce((s, t) => s + t.amount, 0);
+    .filter((t) => Number(t.amount) > 0)
+    .reduce((s, t) => s + Number(t.amount), 0);
   const totalSpent = Math.abs(
-    transactions.filter((t) => t.amount < 0).reduce((s, t) => s + t.amount, 0)
+    transactions.filter((t) => Number(t.amount) < 0).reduce((s, t) => s + Number(t.amount), 0)
   );
 
   return (

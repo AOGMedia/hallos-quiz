@@ -1,19 +1,22 @@
 import { getSocket } from "./socket";
 
-export const joinMatch = (token: string, matchId: string): void => {
-  const socket = getSocket(token);
-  socket.emit("join_match", { matchId });
+export const joinMatch = (matchId: string): void => {
+  getSocket().emit("join_match", { matchId });
 };
 
-export const submitAnswer = (
-  token: string,
-  payload: { matchId: string; questionId: string; answer: string; timeInSeconds: number }
-): void => {
-  const socket = getSocket(token);
-  socket.emit("submit_answer", payload);
+export const getOnlinePlayers = (page: number, limit: number): void => {
+  getSocket().emit("get_online_players", { page, limit });
 };
 
-export const heartbeat = (token: string): void => {
-  const socket = getSocket(token);
-  socket.emit("heartbeat", { timestamp: Date.now() });
+export const submitAnswer = (payload: {
+  matchId: string;
+  questionId: string;
+  answer: string;
+  timeInSeconds: number;
+}): void => {
+  getSocket().emit("submit_answer", payload);
+};
+
+export const heartbeat = (): void => {
+  getSocket().emit("heartbeat", { timestamp: Date.now() });
 };

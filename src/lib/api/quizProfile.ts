@@ -14,7 +14,7 @@ export const DICEBEAR_STYLES = [
 export type DiceBearStyle = (typeof DICEBEAR_STYLES)[number];
 
 export const getAvatarUrl = (nickname: string, style: DiceBearStyle = "avataaars"): string =>
-  `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(nickname)}`;
+  `https://api.dicebear.com/9.x/${style}/svg?seed=${nickname.trim()}`;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
