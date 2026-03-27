@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { Swords, Clock, Loader2 } from "lucide-react";
+import { Swords, Clock, Loader2, X, BookOpen } from "lucide-react";
 import WagerBadge from "@/components/challenge/WagerBadge";
 import type { Challenge } from "@/lib/api/lobby";
 
 interface ChallengeCardProps {
   challenge: Challenge;
   onAccept: (id: string) => void;
+  onDecline: (id: string) => void;
   isAccepting?: boolean;
+  isDeclining?: boolean;
+  userBalance?: number;
 }
 
 function timeLeft(expiresAt: string): string {
@@ -18,8 +21,11 @@ function timeLeft(expiresAt: string): string {
   return `${mins}m left`;
 }
 
-const ChallengeCard = ({ challenge, onAccept, isAccepting }: ChallengeCardProps) => {
+const ChallengeCard = ({ challenge, onAccept, onDecline, isAccepting, isDeclining, userBalance }: ChallengeCardProps) => {
   const [imgError, setImgError] = useState(false);
+  const canAfford = userBalance === undefined || userBalance >= challenge.wagerAmount;
+  const displayName = challenge.challengerNickname ?? challenge.creatorUsername ?? `Player #${challenge.creatorId}`;
+  const avatar = challenge.challengerAvatar;
 
   return (
     <div className="card-player flex flex-col gap-3">
@@ -27,24 +33,26 @@ const ChallengeCard = ({ challenge, onAccept, isAccepting }: ChallengeCardProps)
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-full border border-border bg-secondary flex-shrink-0 overflow-hidden flex items-center justify-center">
-            {!imgError && challenge.challengerAvatar ? (
+            {!imgError && avatar ? (
               <img
-                src={challenge.challengerAvatar}
-                alt={challenge.challengerNickname}
+                src={avatar}
+                alt={displayName}
                 className="w-full h-full object-cover"
                 onError={() => setImgError(true)}
               />
             ) : (
               <span className="text-sm font-bold text-primary">
-                {challenge.challengerNickname.charAt(0).toUpperCase()}
+                {displayName.charAt(0).toUpperCase()}
               </span>
             )}
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">{challenge.challengerNickname}</p>
-            <p className="text-[10px] text-muted-foreground">
-              {challenge.categoryName} · {challenge.challengerWins}W/{challenge.challengerLosses}L
-            </p>
+            <p className="text-sm font-semibold text-foreground">{displayName}</p>
+            {challenge.challengerWins !== undefined && (
+              <p className="text-[10px] text-muted-foreground">
+                {challenge.challengerWins}W / {challenge.challengerLosses ?? 0}L
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -53,18 +61,34 @@ const ChallengeCard = ({ challenge, onAccept, isAccepting }: ChallengeCardProps)
         </div>
       </div>
 
+      {/* Category */}
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
+        <span className="truncate">{challenge.categoryName}</span>
+      </div>
+
       {/* Wager */}
       <WagerBadge amount={challenge.wagerAmount} label="Wager" size="sm" />
 
-      {/* Accept */}
-      <button
-        onClick={() => onAccept(challenge.id)}
-        disabled={isAccepting}
-        className="btn-accent w-full flex items-center justify-center gap-2 text-sm disabled:opacity-50"
-      >
-        {isAccepting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Swords className="w-4 h-4" />}
-        {isAccepting ? "Accepting..." : "Accept Challenge"}
-      </button>
+      {/* Actions */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => onDecline(challenge.id)}
+          disabled={isDeclining}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-destructive/50 text-destructive hover:bg-destructive/10 text-xs font-medium transition-colors disabled:opacity-50"
+        >
+          {isDeclining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+          Decline
+        </button>
+        <button
+          onClick={() => onAccept(challenge.id)}
+          disabled={isAccepting || !canAfford}
+          className="flex-1 btn-accent flex items-center justify-center gap-1.5 text-xs disabled:opacity-50"
+        >
+          {isAccepting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Swords className="w-3.5 h-3.5" />}
+          {isAccepting ? "Accepting..." : !canAfford ? `Need ${challenge.wagerAmount} CP` : "Accept"}
+        </button>
+      </div>
     </div>
   );
 };

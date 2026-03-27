@@ -6,9 +6,11 @@ interface TopBarProps {
   wins: number;
   totalGames: number;
   userAvatar: string;
+  searchQuery?: string;
+  onSearchChange?: (q: string) => void;
 }
 
-const TopBar = ({ onlineCount, zetaPoints, wins, totalGames, userAvatar }: TopBarProps) => {
+const TopBar = ({ onlineCount, zetaPoints, wins, totalGames, userAvatar, searchQuery = "", onSearchChange }: TopBarProps) => {
   return (
     <header className="min-h-[56px] md:h-16 border-b border-border bg-background flex flex-col md:flex-row items-stretch md:items-center justify-between px-4 md:px-6 py-2 md:py-0 gap-2 md:gap-0">
       {/* Search - hidden on mobile, visible from md up */}
@@ -17,6 +19,8 @@ const TopBar = ({ onlineCount, zetaPoints, wins, totalGames, userAvatar }: TopBa
         <input
           type="text"
           placeholder="Search players"
+          value={searchQuery}
+          onChange={(e) => onSearchChange?.(e.target.value)}
           className="input-dark w-full pl-10 py-2 text-sm"
         />
       </div>

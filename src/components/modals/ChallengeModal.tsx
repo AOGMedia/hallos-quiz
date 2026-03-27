@@ -18,8 +18,7 @@ interface ChallengeModalProps {
   }) => void;
 }
 
-const WAGER_PRESETS = [50, 100, 200, 500];
-const MIN_WAGER = 10;
+const WAGER_PRESETS = [0, 50, 100, 200, 500];
 
 const getFormColor = (result: "W" | "L" | "D") => {
   switch (result) {
@@ -31,7 +30,7 @@ const getFormColor = (result: "W" | "L" | "D") => {
 
 const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) => {
   const [selectedCategory, setSelectedCategory] = useState<QuizCategory | null>(null);
-  const [wagerAmount, setWagerAmount] = useState(100);
+  const [wagerAmount, setWagerAmount] = useState(0);
   const [customWager, setCustomWager] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -42,12 +41,14 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
     setSelectedCategory((prev) => prev?.id === cat.id ? null : cat);
   };
 
-  const effectiveWager = customWager ? parseInt(customWager) || 0 : wagerAmount;
+  const effectiveWager = customWager !== "" ? parseInt(customWager) || 0 : wagerAmount;
   const filteredCategories = allCategories.filter((cat) =>
     cat.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const canChallenge = selectedCategory !== null && effectiveWager >= MIN_WAGER;
+  // 0 wager is valid (free match), negative is not
+  const isWagerValid = effectiveWager >= 0 && (customWager === "" || !isNaN(parseInt(customWager)));
+  const canChallenge = selectedCategory !== null && isWagerValid;
 
   const handleChallenge = () => {
     if (!canChallenge || !selectedCategory) return;
@@ -137,7 +138,7 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
             <div className="flex items-center gap-2 mb-2">
               <Zap className="w-4 h-4 text-warning" />
               <h4 className="font-semibold text-sm sm:text-base">Wager Amount</h4>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">(required · min {MIN_WAGER} CP)</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">(optional · 0 CP = free match)</span>
             </div>
 
             {/* Preset chips */}
@@ -165,14 +166,13 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
                 value={customWager}
                 onChange={(e) => setCustomWager(e.target.value)}
                 placeholder="Or enter custom amount (CP)"
-                min={MIN_WAGER}
+                min={0}
                 className="input-dark w-full pl-9 text-sm"
               />
             </div>
           </div>
 
-          {/* Escrow notice */}
-          {effectiveWager >= MIN_WAGER && (
+          {effectiveWager > 0 && (
             <div className="flex items-center gap-2 p-2.5 bg-warning/10 border border-warning/20 rounded-lg text-xs text-warning">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
               <span>
@@ -181,8 +181,8 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
             </div>
           )}
 
-          {customWager && effectiveWager < MIN_WAGER && (
-            <p className="text-xs text-destructive">Minimum wager is {MIN_WAGER} CP</p>
+          {customWager !== "" && effectiveWager < 0 && (
+            <p className="text-xs text-destructive">Wager cannot be negative</p>
           )}
         </div>
 
@@ -197,8 +197,8 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
           <Swords className="w-4 h-4 sm:w-5 sm:h-5" />
           {selectedCategory === null
             ? "Select a category"
-            : effectiveWager < MIN_WAGER
-            ? "Enter a wager amount"
+            : effectiveWager === 0
+            ? "Challenge · Free Match"
             : `Challenge · ${effectiveWager.toLocaleString()} CP`}
         </button>
       </div>

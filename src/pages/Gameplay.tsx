@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Swords, Flag } from "lucide-react";
 import ChallengeIntro from "@/components/gameplay/ChallengeIntro";
@@ -10,12 +10,35 @@ import ResultsScoreCard from "@/components/results/ResultsScoreCard";
 import ResultsBreakdown from "@/components/results/ResultsBreakdown";
 import ResultsActions from "@/components/results/ResultsActions";
 import ForfeitModal from "@/components/modals/ForfeitModal";
-import { sampleQuestions, type GameResult } from "@/data/quizData";
 import { avatars } from "@/data/gameData";
 import { useForfeitMatch } from "@/hooks/useChallenge";
+import { joinMatch, submitAnswer } from "@/lib/socket/emitters";
+import { attachMatchEvents, detachMatchEvents } from "@/lib/socket/events";
+import type { MatchQuestion } from "@/lib/api/lobby";
+import type { GameResult } from "@/data/quizData";
 
 type GameState = "intro" | "playing" | "results";
-type AnswerState = "default" | "selected" | "correct" | "wrong" | "opponent-wrong";
+type AnswerState = "default" | "correct" | "wrong" | "opponent-wrong";
+
+// Convert API question format to internal format
+interface ActiveQuestion {
+  id: string;
+  question: string;
+  options: { label: string; value: string }[];
+  correctAnswer: string | null; // null until server reveals it
+  isBonus?: boolean;
+  timeLimit: number;
+}
+
+function buildQuestion(q: MatchQuestion, timeLimit = 10): ActiveQuestion {
+  return {
+    id: q.id,
+    question: q.questionText,
+    options: Object.entries(q.options).map(([value, label]) => ({ label, value })),
+    correctAnswer: null,
+    timeLimit,
+  };
+}
 
 const Gameplay = () => {
   const navigate = useNavigate();
@@ -26,13 +49,18 @@ const Gameplay = () => {
 
   const player1 = match?.player1 ?? { name: "You", avatar: avatars[0] };
   const player2 = match?.player2 ?? { name: "Opponent", avatar: avatars[1] };
+  const matchId = match?.matchId as string | undefined;
 
-  // Redirect if no match data (e.g. direct URL access)
+  // Build questions from real match data, fall back to empty
+  const rawQuestions: MatchQuestion[] = match?.questions ?? [];
+  const [questions, setQuestions] = useState<ActiveQuestion[]>(
+    rawQuestions.map((q) => buildQuestion(q))
+  );
+
   useEffect(() => {
-    if (!matchRaw) {
-      navigate("/lobby", { replace: true });
-    }
+    if (!matchRaw) navigate("/lobby", { replace: true });
   }, [matchRaw, navigate]);
+
   const [gameState, setGameState] = useState<GameState>("intro");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(10);
@@ -45,142 +73,154 @@ const Gameplay = () => {
   const [showResultsBreakdown, setShowResultsBreakdown] = useState(false);
   const [isOpponentTurn, setIsOpponentTurn] = useState(false);
   const [startTime, setStartTime] = useState<number>(Date.now());
-  const [totalPlayTime, setTotalPlayTime] = useState("07min 15secs");
+  const [totalPlayTime, setTotalPlayTime] = useState("00min 00secs");
   const [showForfeit, setShowForfeit] = useState(false);
-  const { mutate: forfeit, isPending: isForfeiting } = useForfeitMatch();
-  const matchId = match?.matchId as string | undefined;
+  const { mutate: forfeit } = useForfeitMatch();
 
-  const currentQuestion = sampleQuestions[currentQuestionIndex];
-  const totalQuestions = sampleQuestions.length;
+  const selectedAnswerRef = useRef<string | null>(null);
+  const timeLeftRef = useRef(10);
 
-  // Timer effect
+  const currentQuestion = questions[currentQuestionIndex];
+  const totalQuestions = questions.length;
+
+  // ── Socket events ──────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (gameState !== "playing" || !matchId) return;
+
+    // Join the match room
+    joinMatch(matchId);
+
+    attachMatchEvents({
+      onMatchStarted: (data) => {
+        // Server pushes first question — update timeLimit
+        setTimeLeft(data.timeLimit ?? 10);
+        timeLeftRef.current = data.timeLimit ?? 10;
+      },
+      onAnswerRecorded: (data) => {
+        // Server confirms our answer and reveals correct answer
+        setQuestions((prev) =>
+          prev.map((q, i) =>
+            i === currentQuestionIndex
+              ? { ...q, correctAnswer: data.correctAnswer }
+              : q
+          )
+        );
+        const newStates: Record<string, AnswerState> = {};
+        currentQuestion?.options.forEach((opt) => {
+          if (opt.value === data.correctAnswer) newStates[opt.value] = "correct";
+          else if (opt.value === selectedAnswerRef.current && !data.correct) newStates[opt.value] = "wrong";
+        });
+        setAnswerStates(newStates);
+        if (data.correct) setPlayer1Score((s) => s + data.pointsEarned);
+      },
+      onOpponentProgress: (data) => {
+        if (data.answeredCorrectly) setPlayer2Score((s) => s + 5);
+        // Mark opponent's wrong answer visually if we know it
+        setIsOpponentTurn(false);
+      },
+      onMatchEnded: (data) => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        setTotalPlayTime(`${mins.toString().padStart(2, "0")}min ${secs.toString().padStart(2, "0")}secs`);
+        setPlayer1Score(data.player1Score);
+        setPlayer2Score(data.player2Score);
+        setGameState("results");
+      },
+      onError: (err) => {
+        console.error("[Gameplay] socket error:", err.message);
+      },
+    });
+
+    return () => detachMatchEvents();
+  }, [gameState, matchId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Timer ──────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (gameState !== "playing" || isAnswerRevealed) return;
-
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
+        timeLeftRef.current = prev - 1;
         if (prev <= 1) {
-          // Time's up - reveal answer
           handleTimeUp();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-
     return () => clearInterval(timer);
-  }, [gameState, currentQuestionIndex, isAnswerRevealed]);
+  }, [gameState, currentQuestionIndex, isAnswerRevealed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTimeUp = useCallback(() => {
     if (!currentQuestion) return;
-    
     setIsAnswerRevealed(true);
+    // If we have a correct answer from server, show it; otherwise just reveal
     const correctAnswer = currentQuestion.correctAnswer;
-    
-    // Show correct answer
-    const newStates: Record<string, AnswerState> = {};
-    currentQuestion.options.forEach((opt) => {
-      if (opt.value === correctAnswer) {
-        newStates[opt.value] = "correct";
-      } else if (opt.value === selectedAnswer) {
-        newStates[opt.value] = "wrong";
-      }
-    });
-    setAnswerStates(newStates);
-
-    // Add to results
+    if (correctAnswer) {
+      const newStates: Record<string, AnswerState> = {};
+      currentQuestion.options.forEach((opt) => {
+        if (opt.value === correctAnswer) newStates[opt.value] = "correct";
+        else if (opt.value === selectedAnswerRef.current) newStates[opt.value] = "wrong";
+      });
+      setAnswerStates(newStates);
+    }
     setGameResults((prev) => [
       ...prev,
       {
         questionNumber: currentQuestionIndex + 1,
         question: currentQuestion.question,
-        answer: selectedAnswer || "No answer",
-        isCorrect: selectedAnswer === correctAnswer,
-        timeInSeconds: 10 - timeLeft,
+        answer: selectedAnswerRef.current || "No answer",
+        isCorrect: false,
+        timeInSeconds: currentQuestion.timeLimit,
       },
     ]);
-
-    // Move to next question after delay
-    setTimeout(() => {
-      moveToNextQuestion();
-    }, 2000);
-  }, [currentQuestion, selectedAnswer, currentQuestionIndex, timeLeft]);
+    setTimeout(() => moveToNextQuestion(), 2000);
+  }, [currentQuestion, currentQuestionIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAnswerSelect = (value: string) => {
     if (isAnswerRevealed || selectedAnswer) return;
-
     setSelectedAnswer(value);
+    selectedAnswerRef.current = value;
     setIsAnswerRevealed(true);
 
-    const correctAnswer = currentQuestion.correctAnswer;
-    const isCorrect = value === correctAnswer;
-    const points = currentQuestion.isBonus ? 7 : 5;
-
-    // Simulate opponent answer (random wrong answer sometimes)
-    const opponentAnswered = Math.random() > 0.3;
-    const opponentCorrect = opponentAnswered && Math.random() > 0.5;
-    let opponentAnswer: string | null = null;
-    
-    if (opponentAnswered) {
-      if (opponentCorrect) {
-        opponentAnswer = correctAnswer;
-      } else {
-        const wrongOptions = currentQuestion.options.filter(
-          (opt) => opt.value !== correctAnswer
-        );
-        opponentAnswer = wrongOptions[Math.floor(Math.random() * wrongOptions.length)].value;
-      }
+    // Emit to server
+    if (matchId && currentQuestion) {
+      submitAnswer({
+        matchId,
+        questionId: currentQuestion.id,
+        answer: value,
+        timeInSeconds: currentQuestion.timeLimit - timeLeftRef.current,
+      });
     }
 
-    // Update answer states
-    const newStates: Record<string, AnswerState> = {};
-    currentQuestion.options.forEach((opt) => {
-      if (opt.value === correctAnswer) {
-        newStates[opt.value] = "correct";
-      } else if (opt.value === value && !isCorrect) {
-        newStates[opt.value] = "wrong";
-      } else if (opt.value === opponentAnswer && opponentAnswer !== correctAnswer) {
-        newStates[opt.value] = "opponent-wrong";
-      }
-    });
-    setAnswerStates(newStates);
-
-    // Update scores
-    if (isCorrect) {
-      setPlayer1Score((prev) => prev + points);
-    }
-    if (opponentCorrect) {
-      setPlayer2Score((prev) => prev + points);
-    }
-
-    // Add to results
+    // Optimistic UI — server will confirm via answer_recorded
     setGameResults((prev) => [
       ...prev,
       {
         questionNumber: currentQuestionIndex + 1,
-        question: currentQuestion.question,
+        question: currentQuestion?.question ?? "",
         answer: value,
-        isCorrect,
-        timeInSeconds: 10 - timeLeft,
+        isCorrect: false, // updated when server responds
+        timeInSeconds: currentQuestion?.timeLimit - timeLeftRef.current,
       },
     ]);
 
-    // Move to next question after delay
-    setTimeout(() => {
-      moveToNextQuestion();
-    }, 2000);
+    setTimeout(() => moveToNextQuestion(), 2000);
   };
 
   const moveToNextQuestion = () => {
     if (currentQuestionIndex < totalQuestions - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
-      setTimeLeft(10);
+      setTimeLeft(questions[currentQuestionIndex + 1]?.timeLimit ?? 10);
+      timeLeftRef.current = questions[currentQuestionIndex + 1]?.timeLimit ?? 10;
       setSelectedAnswer(null);
+      selectedAnswerRef.current = null;
       setAnswerStates({});
       setIsAnswerRevealed(false);
       setIsOpponentTurn(Math.random() > 0.5);
     } else {
-      // Game over
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const mins = Math.floor(elapsed / 60);
       const secs = elapsed % 60;
@@ -197,30 +237,19 @@ const Gameplay = () => {
   const isVictory = player1Score > player2Score;
 
   if (gameState === "intro") {
-    return (
-      <ChallengeIntro
-        player1={player1}
-        player2={player2}
-        onComplete={handleIntroComplete}
-      />
-    );
+    return <ChallengeIntro player1={player1} player2={player2} onComplete={handleIntroComplete} />;
   }
 
   if (gameState === "results") {
     return (
       <div className="min-h-screen bg-background flex flex-col overflow-y-auto">
-        {/* Green glow effect at top */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 sm:w-96 h-32 sm:h-48 bg-gradient-radial from-primary/30 to-transparent blur-3xl" />
-
-        {/* Header */}
         <header className="flex items-center justify-center gap-2 text-primary py-4 sm:py-6">
           <Swords className="w-4 h-4 sm:w-5 sm:h-5" />
           <span className="text-xs sm:text-sm font-medium">Friendly Challenge</span>
         </header>
-
         <main className="flex-1 flex flex-col items-center justify-start sm:justify-center px-4 sm:px-6 pb-6 max-w-2xl mx-auto w-full">
           <ResultsHeader isVictory={isVictory} />
-
           <ResultsScoreCard
             player1={{ ...player1, score: player1Score }}
             player2={{ ...player2, score: player2Score }}
@@ -228,9 +257,7 @@ const Gameplay = () => {
             showResults={showResultsBreakdown}
             onToggleResults={() => setShowResultsBreakdown(!showResultsBreakdown)}
           />
-
           {showResultsBreakdown && <ResultsBreakdown results={gameResults} />}
-
           <div className="w-full">
             <ResultsActions
               onShareResults={() => {}}
@@ -245,16 +272,22 @@ const Gameplay = () => {
     );
   }
 
+  // No questions yet — show loading
+  if (!currentQuestion) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col overflow-y-auto">
-      {/* Green glow effect at top */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 sm:w-96 h-32 sm:h-48 bg-gradient-radial from-primary/30 to-transparent blur-3xl" />
-
       <GameplayHeader
         player1={{ ...player1, score: player1Score }}
         player2={{ ...player2, score: player2Score }}
       />
-
       <main className="flex-1 px-4 sm:px-6 py-4 max-w-2xl mx-auto w-full">
         <QuestionCard
           questionNumber={currentQuestionIndex + 1}
@@ -265,7 +298,6 @@ const Gameplay = () => {
           timeLeft={timeLeft}
           isOpponentTurn={isOpponentTurn}
         />
-
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {currentQuestion.options.map((option) => (
             <AnswerOption
@@ -273,18 +305,12 @@ const Gameplay = () => {
               label={option.label}
               value={option.value}
               state={answerStates[option.value] || "default"}
-              points={
-                answerStates[option.value] === "correct"
-                  ? currentQuestion.isBonus ? 7 : 5
-                  : undefined
-              }
+              points={answerStates[option.value] === "correct" ? (currentQuestion.isBonus ? 7 : 5) : undefined}
               onClick={() => handleAnswerSelect(option.value)}
               disabled={isAnswerRevealed}
             />
           ))}
         </div>
-
-        {/* Forfeit button */}
         <div className="flex justify-center mt-6">
           <button
             onClick={() => setShowForfeit(true)}
@@ -303,15 +329,8 @@ const Gameplay = () => {
           onConfirm={() => {
             if (matchId) {
               forfeit(matchId, {
-                onSuccess: () => {
-                  sessionStorage.removeItem("currentMatch");
-                  navigate("/lobby");
-                },
-                onError: () => {
-                  // Even on error, leave the match
-                  sessionStorage.removeItem("currentMatch");
-                  navigate("/lobby");
-                },
+                onSuccess: () => { sessionStorage.removeItem("currentMatch"); navigate("/lobby"); },
+                onError: () => { sessionStorage.removeItem("currentMatch"); navigate("/lobby"); },
               });
             } else {
               sessionStorage.removeItem("currentMatch");

@@ -94,3 +94,64 @@ export const onIncomingChallenge = (cb: (data: IncomingChallengePayload) => void
 export const offIncomingChallenge = (): void => {
   getSocket().off("challenge_received");
 };
+
+// ── Challenge lifecycle events ────────────────────────────────────────────────
+
+export interface ChallengeAcceptedPayload {
+  challengeId: string;
+  matchId: string;
+  startTime: string;
+  questions: Array<{
+    id: string;
+    questionText: string;
+    options: Record<string, string>;
+  }>;
+  opponent: {
+    userId: number;
+    nickname: string;
+    avatarUrl: string;
+  };
+}
+
+export interface ChallengeDeclinedPayload {
+  challengeId: string;
+  refundAmount: number;
+}
+
+export interface ChallengeTimeoutPayload {
+  challengeId: string;
+}
+
+export interface ChallengeCounterPayload {
+  challengeId: string;
+  newWagerAmount: number;
+  opponentNickname: string;
+}
+
+export const onChallengeAccepted = (cb: (data: ChallengeAcceptedPayload) => void): void => {
+  getSocket().on("challenge_accepted", cb);
+};
+export const offChallengeAccepted = (): void => {
+  getSocket().off("challenge_accepted");
+};
+
+export const onChallengeDeclined = (cb: (data: ChallengeDeclinedPayload) => void): void => {
+  getSocket().on("challenge_declined", cb);
+};
+export const offChallengeDeclined = (): void => {
+  getSocket().off("challenge_declined");
+};
+
+export const onChallengeTimeout = (cb: (data: ChallengeTimeoutPayload) => void): void => {
+  getSocket().on("challenge_timeout", cb);
+};
+export const offChallengeTimeout = (): void => {
+  getSocket().off("challenge_timeout");
+};
+
+export const onChallengeCounter = (cb: (data: ChallengeCounterPayload) => void): void => {
+  getSocket().on("challenge_counter", cb);
+};
+export const offChallengeCounter = (): void => {
+  getSocket().off("challenge_counter");
+};

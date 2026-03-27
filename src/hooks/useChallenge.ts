@@ -15,8 +15,12 @@ import {
 export function useCategories() {
   return useQuery({
     queryKey: ["quiz", "categories"],
-    queryFn: fetchCategories,
-    staleTime: 5 * 60_000, // categories rarely change
+    queryFn: async () => {
+      const res = await fetchCategories();
+      console.log("[useCategories] response:", res);
+      return res;
+    },
+    staleTime: 5 * 60_000,
   });
 }
 

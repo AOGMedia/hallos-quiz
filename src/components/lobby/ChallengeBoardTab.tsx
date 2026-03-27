@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Swords, RefreshCw, Loader2 } from "lucide-react";
+import { Swords, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import ChallengeCard from "./ChallengeCard";
-import { useChallenges, useAcceptChallenge } from "@/hooks/useChallenge";
+import { useChallenges, useAcceptChallenge, useDeclineChallenge } from "@/hooks/useChallenge";
 import type { Challenge } from "@/lib/api/lobby";
 import { useQueryClient } from "@tanstack/react-query";
+import { useChutaWalletStore } from "@/store/chutaWalletStore";
 
 const WAGER_FILTERS = ["All", "≤100 CP", "101–300 CP", "300+ CP"] as const;
 type WagerFilter = (typeof WAGER_FILTERS)[number];
@@ -18,26 +19,37 @@ function filterByWager(challenges: Challenge[], filter: WagerFilter): Challenge[
 }
 
 interface ChallengeBoardTabProps {
-  onAccept: (challengeId: string, matchId: string) => void;
+  onAccept: (challengeId: string, matchId: string, challenger?: { userId: number; nickname: string; avatarUrl: string }, questions?: import('@/lib/api/lobby').MatchQuestion[]) => void;
 }
 
 const ChallengeBoardTab = ({ onAccept }: ChallengeBoardTabProps) => {
   const [activeFilter, setActiveFilter] = useState<WagerFilter>("All");
+  const [acceptError, setAcceptError] = useState<string | null>(null);
   const qc = useQueryClient();
 
   const { data, isLoading, isError } = useChallenges({ status: "pending" });
   const { mutate: accept, isPending: isAccepting } = useAcceptChallenge();
+  const { mutate: decline, isPending: isDeclining } = useDeclineChallenge();
+  const balance = useChutaWalletStore((s) => s.balance);
 
   const challenges = data?.challenges ?? [];
   const filtered = filterByWager(challenges, activeFilter);
 
   const handleAccept = (challengeId: string) => {
+    setAcceptError(null);
     accept(challengeId, {
       onSuccess: (res) => {
         if (res.success) {
-          onAccept(challengeId, res.matchId);
+          onAccept(challengeId, res.matchId, res.challenger, res.questions);
         }
       },
+      onError: (err) => setAcceptError((err as Error).message ?? "Failed to accept challenge"),
+    });
+  };
+
+  const handleDecline = (challengeId: string) => {
+    decline(challengeId, {
+      onError: (err) => setAcceptError((err as Error).message ?? "Failed to decline challenge"),
     });
   };
 
@@ -96,15 +108,26 @@ const ChallengeBoardTab = ({ onAccept }: ChallengeBoardTabProps) => {
           <p className="text-xs text-muted-foreground/60 mt-1">Try a different filter or check back soon</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map((challenge) => (
-            <ChallengeCard
-              key={challenge.id}
-              challenge={challenge}
-              onAccept={handleAccept}
-              isAccepting={isAccepting}
-            />
-          ))}
+        <div className="flex flex-col gap-4">
+          {acceptError && (
+            <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-xl text-destructive text-sm animate-in slide-in-from-top-2 duration-300">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>{acceptError}</span>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filtered.map((challenge) => (
+              <ChallengeCard
+                key={challenge.id}
+                challenge={challenge}
+                onAccept={handleAccept}
+                onDecline={handleDecline}
+                isAccepting={isAccepting}
+                isDeclining={isDeclining}
+                userBalance={balance}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

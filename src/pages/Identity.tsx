@@ -5,9 +5,10 @@ import NicknameInput from "@/components/identity/NicknameInput";
 import AvatarStylePicker from "@/components/identity/AvatarStylePicker";
 import AvatarPickerModal from "@/components/identity/AvatarPickerModal";
 import ProfileStatsCard from "@/components/identity/ProfileStatsCard";
-import { useNicknameCheck, useUpdateQuizProfile } from "@/hooks/useQuizProfile";
+import { useNicknameCheck, useUpdateQuizProfile, useQuizProfileQuery } from "@/hooks/useQuizProfile";
 import { useQuizProfileStore } from "@/store/quizProfileStore";
 import { getAvatarUrl, DICEBEAR_STYLES, type DiceBearStyle } from "@/lib/api/quizProfile";
+import { getToken } from "@/store/authStore";
 
 const NICKNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
@@ -174,6 +175,18 @@ const Identity = () => {
   const { profile, isRegistered } = useQuizProfileStore();
   const [isEditing, setIsEditing] = useState(false);
 
+  // Decode userId from JWT and fetch fresh profile data
+  const userId = (() => {
+    try {
+      const token = getToken();
+      if (!token) return 0;
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload?.id ?? 0;
+    } catch { return 0; }
+  })();
+
+  const { isLoading } = useQuizProfileQuery(userId);
+
   return (
     <div className="flex-1 overflow-y-auto p-3 sm:p-6">
       {/* Header */}
@@ -185,7 +198,7 @@ const Identity = () => {
       </div>
 
       {/* Not registered — prompt to go through profile setup */}
-      {!isRegistered && (
+      {!isRegistered && !isLoading && (
         <div className="max-w-lg bg-card border border-border rounded-2xl p-6 text-center space-y-3">
           <p className="text-sm sm:text-base text-foreground font-medium">No quiz identity yet</p>
           <p className="text-xs sm:text-sm text-muted-foreground">
@@ -195,8 +208,14 @@ const Identity = () => {
         </div>
       )}
 
+      {isLoading && (
+        <div className="flex items-center justify-center py-16">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+
       {/* Registered — view + edit */}
-      {isRegistered && profile && (
+      {!isLoading && isRegistered && profile && (
         <div className="space-y-6 sm:space-y-8 max-w-2xl">
           {/* Profile card */}
           <div className="bg-card border border-border rounded-2xl p-4 sm:p-6">

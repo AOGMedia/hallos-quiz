@@ -188,6 +188,41 @@ const ProfileSetup = () => {
           >
             {isPending ? "Setting up..." : "Start Playing"}
           </button>
+
+          {/* Already registered link */}
+          <button
+            type="button"
+            onClick={() => {
+              // Fetch profile using JWT userId and go straight to lobby
+              try {
+                const token = sessionStorage.getItem("auth_token");
+                if (!token) { navigate("/lobby"); return; }
+                const payload = JSON.parse(atob(token.split(".")[1]));
+                const userId = payload?.id;
+                if (userId) {
+                  import("@/lib/api/quizProfile").then(({ fetchQuizProfile }) => {
+                    fetchQuizProfile(userId).then((res) => {
+                      if (res.profile) {
+                        const p = { nickname: res.profile.nickname, avatar: res.profile.avatarUrl };
+                        sessionStorage.setItem("userProfile", JSON.stringify(p));
+                        import("@/store/quizProfileStore").then(({ useQuizProfileStore }) => {
+                          useQuizProfileStore.getState().setProfile(res.profile);
+                        });
+                      }
+                      navigate("/lobby");
+                    }).catch(() => navigate("/lobby"));
+                  });
+                } else {
+                  navigate("/lobby");
+                }
+              } catch {
+                navigate("/lobby");
+              }
+            }}
+            className="text-xs text-muted-foreground hover:text-primary transition-colors text-center w-full"
+          >
+            Already registered? <span className="text-primary underline">Go to Lobby</span>
+          </button>
         </div>
       </div>
 

@@ -51,7 +51,13 @@ function resolveProfile(): { nickname: string; avatar: string } | null {
           nickname: state.profile.nickname,
           avatar: state.profile.avatarUrl ?? avatars[0],
         };
-        // Hydrate sessionStorage so subsequent reads are fast
+        sessionStorage.setItem("userProfile", JSON.stringify(profile));
+        return profile;
+      }
+      // isRegistered but no profile object yet — fetch from API on mount
+      // Use a placeholder for now; AppLayout will fetch the real profile
+      if (state?.isRegistered) {
+        const profile = { nickname: "", avatar: avatars[0], needsProfileFetch: true };
         sessionStorage.setItem("userProfile", JSON.stringify(profile));
         return profile;
       }
@@ -68,6 +74,8 @@ const AppLayout = () => {
   const [showExit, setShowExit] = useState(false);
   const [incomingChallenge, setIncomingChallenge] = useState<IncomingChallengePayload | null>(null);
   const [onlineCount, setOnlineCount] = useState(0);
+  const [counterOfferError, setCounterOfferError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { mutate: acceptChallenge } = useAcceptChallenge();
   const { mutate: declineChallenge } = useDeclineChallenge();
@@ -97,6 +105,36 @@ const AppLayout = () => {
     getSocket();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // If profile is incomplete (returning user with no cached profile), fetch it from API
+  useEffect(() => {
+    if (userProfile.nickname) return; // already have it
+    try {
+      const token = sessionStorage.getItem("auth_token");
+      if (!token) return;
+      // Decode userId from JWT payload (base64)
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const userId = payload?.id;
+      if (!userId) return;
+      import("@/lib/api/quizProfile").then(({ fetchQuizProfile }) => {
+        fetchQuizProfile(userId).then((res) => {
+          if (res.profile) {
+            const p = {
+              nickname: res.profile.nickname,
+              avatar: res.profile.avatarUrl ?? avatars[0],
+            };
+            sessionStorage.setItem("userProfile", JSON.stringify(p));
+            // Update Zustand store
+            import("@/store/quizProfileStore").then(({ useQuizProfileStore }) => {
+              useQuizProfileStore.getState().setProfile(res.profile);
+            });
+          }
+        }).catch(() => {});
+      });
+    } catch {
+      // ignore
+    }
+  }, [userProfile.nickname]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Listen for incoming challenges globally
   useEffect(() => {
     onIncomingChallenge((payload) => setIncomingChallenge(payload));
@@ -106,7 +144,6 @@ const AppLayout = () => {
       offPlayersUpdated();
     };
   }, []);
-
   const activeNav: NavItem =
     PATH_TO_NAV[location.pathname] ?? "lobby";
 
@@ -135,9 +172,11 @@ const AppLayout = () => {
           wins={wins}
           totalGames={totalGames}
           userAvatar={userProfile.avatar}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
         />
         {/* Each child route renders here */}
-        <Outlet context={{ userProfile }} />
+        <Outlet context={{ userProfile, searchQuery }} />
       </div>
 
       {showExit && (
@@ -187,12 +226,17 @@ const AppLayout = () => {
             });
           }}
           onCounter={(newAmount) => {
+            setCounterOfferError(null);
             sendCounter(
               { id: incomingChallenge.challengeId, payload: { newWagerAmount: newAmount } },
-              { onSuccess: () => setIncomingChallenge(null) }
+              {
+                onSuccess: () => { setIncomingChallenge(null); setCounterOfferError(null); },
+                onError: (err) => setCounterOfferError((err as Error).message ?? "Failed to send counter offer"),
+              }
             );
           }}
           onClose={() => setIncomingChallenge(null)}
+          counterError={counterOfferError}
         />
       )}
     </div>

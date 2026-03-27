@@ -21,6 +21,7 @@ interface IncomingChallengeModalProps {
   onDecline: () => void;
   onCounter: (newAmount: number) => void;
   onClose: () => void;
+  counterError?: string | null;
 }
 
 const COUNTER_PRESETS = [50, 100, 200, 500];
@@ -35,9 +36,16 @@ const IncomingChallengeModal = ({
   onDecline,
   onCounter,
   onClose,
+  counterError: externalCounterError,
 }: IncomingChallengeModalProps) => {
   const [timeLeft, setTimeLeft] = useState(expiresInSeconds);
   const [showCounter, setShowCounter] = useState(false);
+  const [counterError, setCounterError] = useState<string | null>(null);
+
+  // Sync external error into local state
+  useEffect(() => {
+    if (externalCounterError) setCounterError(externalCounterError);
+  }, [externalCounterError]);
   const [counterAmount, setCounterAmount] = useState(wagerAmount);
   const [customCounter, setCustomCounter] = useState("");
 
@@ -50,7 +58,10 @@ const IncomingChallengeModal = ({
   const effectiveCounter = customCounter ? parseInt(customCounter) || 0 : counterAmount;
 
   const handleCounter = () => {
-    if (effectiveCounter > 0) onCounter(effectiveCounter);
+    if (effectiveCounter > 0) {
+      setCounterError(null);
+      onCounter(effectiveCounter);
+    }
   };
 
   return (
@@ -134,6 +145,9 @@ const IncomingChallengeModal = ({
                 Send Counter
               </button>
             </div>
+            {counterError && (
+              <p className="text-xs text-destructive text-center animate-in slide-in-from-bottom-1 duration-200">{counterError}</p>
+            )}
           </div>
         )}
 

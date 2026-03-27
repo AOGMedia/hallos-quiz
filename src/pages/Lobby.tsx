@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import LobbyPlayerCard from "@/components/lobby/LobbyPlayerCard";
 import ChallengeModal from "@/components/modals/ChallengeModal";
@@ -8,45 +8,91 @@ import ChallengeBoardTab from "@/components/lobby/ChallengeBoardTab";
 import { soundEngine } from "@/lib/soundEngine";
 import { useLobbyPlayers } from "@/hooks/useLobbyPlayers";
 import { useCreateChallenge } from "@/hooks/useChallenge";
-import { mockPlayers } from "@/data/gameData";
 import type { LobbyPlayer } from "@/lib/api/lobby";
+import {
+  onChallengeAccepted, offChallengeAccepted,
+  onChallengeDeclined, offChallengeDeclined,
+  onChallengeTimeout, offChallengeTimeout,
+  onChallengeCounter, offChallengeCounter,
+} from "@/lib/socket/events";
 
 type ModalState =
   | "none" | "challenge" | "confirm" | "waiting"
-  | "timeout" | "rejected" | "accepted";
+  | "timeout" | "rejected" | "accepted" | "counter";
 
 interface OutletCtx {
   userProfile: { nickname: string; avatar: string };
+  searchQuery?: string;
 }
 
 const Lobby = () => {
   const navigate = useNavigate();
-  const { userProfile } = useOutletContext<OutletCtx>();
+  const { userProfile, searchQuery = "" } = useOutletContext<OutletCtx>();
 
   const [lobbyTab, setLobbyTab] = useState<"players" | "challenges">("players");
   const [page, setPage] = useState(1);
   const [modalState, setModalState] = useState<ModalState>("none");
   const [selectedPlayer, setSelectedPlayer] = useState<LobbyPlayer | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [wagerAmount, setWagerAmount] = useState(0);
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [challengeError, setChallengeError] = useState<string | null>(null);
+  const [counterOffer, setCounterOffer] = useState<{ amount: number; opponentNickname: string } | null>(null);
+  const activeChallengeIdRef = useRef<string | null>(null);
 
-  const { data, isLoading, isError } = useLobbyPlayers(page);
+  const { data, isLoading } = useLobbyPlayers(page);
   const { mutate: createChallenge, isPending: isCreatingChallenge } = useCreateChallenge();
 
-  // Use real players if available, fall back to mock data so the UI is never empty
-  const mockFallback: LobbyPlayer[] = mockPlayers.map((p, i) => ({
-    userId: i + 1,
-    nickname: p.name,
-    avatarUrl: p.avatar,
-    wins: p.wins,
-    losses: p.losses,
-    winRate: Math.round((p.wins / (p.wins + p.losses)) * 100),
-    chutaBalance: p.points,
-  }));
+  // Listen for challenge lifecycle socket events while in waiting state
+  useEffect(() => {
+    onChallengeAccepted((payload) => {
+      if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
+      soundEngine.stopBellLoop();
+      soundEngine.play("start_challenge");
+      setModalState("accepted");
+      // Store match data for Gameplay
+      const stored = sessionStorage.getItem("userProfile");
+      const me = stored ? JSON.parse(stored) : { nickname: "You", avatar: "" };
+      sessionStorage.setItem("currentMatch", JSON.stringify({
+        matchId: payload.matchId,
+        player1: { name: me.nickname, avatar: me.avatar },
+        player2: { name: payload.opponent.nickname, avatar: payload.opponent.avatarUrl },
+        questions: payload.questions,
+      }));
+      setTimeout(() => navigate("/game"), 1500);
+    });
 
-  const players = (data?.players && data.players.length > 0) ? data.players : (!isLoading ? mockFallback : []);
+    onChallengeDeclined((payload) => {
+      if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
+      soundEngine.stopBellLoop();
+      setModalState("rejected");
+    });
+
+    onChallengeTimeout((payload) => {
+      if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
+      soundEngine.stopBellLoop();
+      setModalState("timeout");
+    });
+
+    onChallengeCounter((payload) => {
+      if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
+      setCounterOffer({ amount: payload.newWagerAmount, opponentNickname: payload.opponentNickname });
+      setModalState("counter" as ModalState);
+    });
+
+    return () => {
+      offChallengeAccepted();
+      offChallengeDeclined();
+      offChallengeTimeout();
+      offChallengeCounter();
+    };
+  }, [navigate]);
+
+  // Use real players only — no mock fallback (fake data causes confusing challenge failures)
+  const players = (data?.players ?? []).filter((p) =>
+    searchQuery === "" || p.nickname.toLowerCase().includes(searchQuery.toLowerCase())
+  );
   const totalPages = data?.totalPages ?? 1;
 
   const handleChallenge = (player: LobbyPlayer) => {
@@ -56,7 +102,8 @@ const Lobby = () => {
   };
 
   const handleChallengeSubmit = (payload: { categoryId: string; categoryName: string; wagerAmount: number }) => {
-    setSelectedCategories([payload.categoryName]);
+    setSelectedCategories([payload.categoryName]); // display name for UI
+    setSelectedCategoryId(payload.categoryId);     // UUID for API
     setWagerAmount(payload.wagerAmount);
     setChallengeError(null);
     setModalState("confirm");
@@ -69,15 +116,14 @@ const Lobby = () => {
     createChallenge(
       {
         wagerAmount,
-        categoryId: selectedCategories[0],
+        categoryId: selectedCategoryId,  // real UUID
         opponentId: selectedPlayer.userId,
       },
       {
         onSuccess: (data) => {
           if (data.success) {
             setChallengeId(data.challengeId);
-            // Challenge sent — stay in waiting state until opponent responds
-            // (WebSocket event or polling will update this when available)
+            activeChallengeIdRef.current = data.challengeId;
           } else {
             setChallengeError("Failed to create challenge");
             setModalState("confirm");
@@ -96,9 +142,12 @@ const Lobby = () => {
     setModalState("none");
     setSelectedPlayer(null);
     setSelectedCategories([]);
+    setSelectedCategoryId("");
     setWagerAmount(0);
     setChallengeId(null);
     setChallengeError(null);
+    setCounterOffer(null);
+    activeChallengeIdRef.current = null;
   };
 
   return (
@@ -128,6 +177,18 @@ const Lobby = () => {
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div key={i} className="card-player animate-pulse h-40 bg-card" />
                 ))}
+              </div>
+            ) : players.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <span className="text-3xl">{searchQuery ? "🔍" : "🎮"}</span>
+                </div>
+                <p className="text-base font-semibold text-foreground mb-1">
+                  {searchQuery ? `No players matching "${searchQuery}"` : "No players online right now"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery ? "Try a different name" : "Check back soon — the lobby fills up fast"}
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-stretch justify-items-stretch [&>*]:min-w-0">
@@ -170,11 +231,17 @@ const Lobby = () => {
           </>
         ) : (
           <ChallengeBoardTab
-            onAccept={(challengeId, matchId) => {
+            onAccept={(challengeId, matchId, challenger, questions) => {
               soundEngine.play("start_challenge");
+              const stored = sessionStorage.getItem("userProfile");
+              const me = stored ? JSON.parse(stored) : { nickname: "You", avatar: "" };
               sessionStorage.setItem("currentMatch", JSON.stringify({
                 matchId,
-                player1: { name: userProfile.nickname || "You", avatar: userProfile.avatar },
+                player1: { name: me.nickname, avatar: me.avatar },
+                player2: challenger
+                  ? { name: challenger.nickname, avatar: challenger.avatarUrl }
+                  : { name: "Opponent", avatar: "" },
+                questions: questions ?? [],
               }));
               navigate("/game");
             }}
@@ -190,13 +257,14 @@ const Lobby = () => {
         />
       )}
 
-      {(["confirm", "waiting", "timeout", "rejected", "accepted"] as ModalState[]).includes(modalState) && selectedPlayer && (
+      {(["confirm", "waiting", "timeout", "rejected", "accepted", "counter"] as ModalState[]).includes(modalState) && selectedPlayer && (
         <ChallengeStatusModal
-          type={modalState as "confirm" | "waiting" | "timeout" | "rejected" | "accepted"}
+          type={modalState as "confirm" | "waiting" | "timeout" | "rejected" | "accepted" | "counter"}
           player={{ name: selectedPlayer.nickname, avatar: selectedPlayer.avatarUrl }}
           challenger={{ name: userProfile.nickname || "You", avatar: userProfile.avatar }}
-          categories={selectedCategories.length > 0 ? selectedCategories : ["General knowledge", "Sports", "Science", "Art", "Finance"]}
+          categories={selectedCategories.length > 0 ? selectedCategories : ["General knowledge"]}
           wagerAmount={wagerAmount}
+          counterAmount={counterOffer?.amount}
           onClose={closeModal}
           onConfirm={isCreatingChallenge ? undefined : handleConfirmChallenge}
           error={challengeError}
@@ -204,6 +272,13 @@ const Lobby = () => {
           onResend={() => setModalState("waiting")}
           onEditTerms={() => setModalState("challenge")}
           onBackToLobby={closeModal}
+          onAcceptCounter={() => {
+            if (counterOffer && challengeId) {
+              // Accept counter — navigate to game (backend handles match creation)
+              closeModal();
+            }
+          }}
+          onDeclineCounter={closeModal}
         />
       )}
     </>

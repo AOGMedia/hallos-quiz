@@ -28,11 +28,12 @@ export interface ChallengeParticipant {
 
 export interface Challenge {
   id: string;
-  challengerId: number;
-  challengerNickname: string;
-  challengerAvatar: string;
-  challengerWins: number;
-  challengerLosses: number;
+  creatorId: number;
+  creatorUsername: string;
+  challengerNickname?: string;
+  challengerAvatar?: string;
+  challengerWins?: number;
+  challengerLosses?: number;
   opponentId: number | null;
   wagerAmount: number;
   categoryId: string;
@@ -65,6 +66,11 @@ export interface AcceptChallengeResponse {
   matchId: string;
   startTime: string;
   questions: MatchQuestion[];
+  challenger?: {
+    userId: number;
+    nickname: string;
+    avatarUrl: string;
+  };
 }
 
 export interface DeclineChallengeResponse {
