@@ -9,15 +9,6 @@ import {
   useTournamentLeaderboard,
   useActiveUsers,
 } from "@/hooks/useLeaderboard";
-import {
-  mockGlobalRankings,
-  mockLobbyRankings,
-  mockTournamentRankings,
-  mockUserRank,
-  mockTotalPlayers,
-  mockActiveUsers,
-} from "@/data/leaderboardData";
-
 type LeaderboardTab = "global" | "lobby" | "tournament";
 
 const TABS: { id: LeaderboardTab; label: string; icon: typeof Globe }[] = [
@@ -51,13 +42,12 @@ const Leaderboard = () => {
   const tournamentQuery = useTournamentLeaderboard();
   const activeUsersQuery = useActiveUsers();
 
-  // Resolved data with mock fallbacks
-  const globalRankings    = globalQuery.data?.rankings    ?? mockGlobalRankings;
-  const lobbyRankings     = lobbyQuery.data?.rankings     ?? mockLobbyRankings;
-  const tournamentRankings = tournamentQuery.data?.rankings ?? mockTournamentRankings;
-  const userRank          = globalQuery.data?.userRank    ?? mockUserRank;
-  const totalPlayers      = globalQuery.data?.totalPlayers ?? mockTotalPlayers;
-  const activeCount       = activeUsersQuery.data?.count  ?? mockActiveUsers;
+  const globalRankings     = globalQuery.data?.rankings     ?? [];
+  const lobbyRankings      = lobbyQuery.data?.rankings      ?? [];
+  const tournamentRankings = tournamentQuery.data?.rankings ?? [];
+  const userRank           = globalQuery.data?.userRank     ?? 0;
+  const totalPlayers       = globalQuery.data?.totalPlayers ?? 0;
+  const activeCount        = activeUsersQuery.data?.count   ?? 0;
 
   const isLoading =
     (activeTab === "global"     && globalQuery.isLoading) ||

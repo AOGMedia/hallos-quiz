@@ -58,7 +58,11 @@ const Gameplay = () => {
   );
 
   useEffect(() => {
-    if (!matchRaw) navigate("/lobby", { replace: true });
+    // Redirect if no match data or match already ended
+    if (!matchRaw || sessionStorage.getItem("matchEnded") === "true") {
+      sessionStorage.removeItem("matchEnded");
+      navigate("/lobby", { replace: true });
+    }
   }, [matchRaw, navigate]);
 
   const [gameState, setGameState] = useState<GameState>("intro");
@@ -75,6 +79,7 @@ const Gameplay = () => {
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [totalPlayTime, setTotalPlayTime] = useState("00min 00secs");
   const [showForfeit, setShowForfeit] = useState(false);
+  const [winnerId, setWinnerId] = useState<number | null>(null);
   const { mutate: forfeit } = useForfeitMatch();
 
   const selectedAnswerRef = useRef<string | null>(null);
@@ -88,17 +93,26 @@ const Gameplay = () => {
   useEffect(() => {
     if (gameState !== "playing" || !matchId) return;
 
-    // Join the match room
+    // Join the match room immediately
     joinMatch(matchId);
 
     attachMatchEvents({
       onMatchStarted: (data) => {
-        // Server pushes first question — update timeLimit
         setTimeLeft(data.timeLimit ?? 10);
         timeLeftRef.current = data.timeLimit ?? 10;
       },
       onAnswerRecorded: (data) => {
-        // Server confirms our answer and reveals correct answer
+        const isCorrect = data.correct ?? data.isCorrect ?? false;
+
+        // Update the gameResults entry for this question with the real isCorrect value
+        setGameResults((prev) =>
+          prev.map((r) =>
+            r.questionId === data.questionId
+              ? { ...r, isCorrect }
+              : r
+          )
+        );
+
         setQuestions((prev) =>
           prev.map((q, i) =>
             i === currentQuestionIndex
@@ -109,14 +123,18 @@ const Gameplay = () => {
         const newStates: Record<string, AnswerState> = {};
         currentQuestion?.options.forEach((opt) => {
           if (opt.value === data.correctAnswer) newStates[opt.value] = "correct";
-          else if (opt.value === selectedAnswerRef.current && !data.correct) newStates[opt.value] = "wrong";
+          else if (opt.value === selectedAnswerRef.current && !isCorrect) newStates[opt.value] = "wrong";
         });
         setAnswerStates(newStates);
-        if (data.correct) setPlayer1Score((s) => s + data.pointsEarned);
+        if (isCorrect) setPlayer1Score((s) => s + (data.pointsEarned || 5));
       },
       onOpponentProgress: (data) => {
-        if (data.answeredCorrectly) setPlayer2Score((s) => s + 5);
-        // Mark opponent's wrong answer visually if we know it
+        // Use real score from backend if available, otherwise increment by 5
+        if (data.score !== undefined) {
+          setPlayer2Score(data.score);
+        } else if (data.answeredCorrectly) {
+          setPlayer2Score((s) => s + 5);
+        }
         setIsOpponentTurn(false);
       },
       onMatchEnded: (data) => {
@@ -124,8 +142,31 @@ const Gameplay = () => {
         const mins = Math.floor(elapsed / 60);
         const secs = elapsed % 60;
         setTotalPlayTime(`${mins.toString().padStart(2, "0")}min ${secs.toString().padStart(2, "0")}secs`);
-        setPlayer1Score(data.player1Score);
-        setPlayer2Score(data.player2Score);
+        
+        // Backend sends player1Score = challenger's score, player2Score = opponent's score
+        const challengerId = match?.challengerId as number | undefined;
+        const myId = (() => {
+          try {
+            const token = sessionStorage.getItem("auth_token");
+            if (!token) return null;
+            return Number(JSON.parse(atob(token.split(".")[1]))?.id);
+          } catch { return null; }
+        })();
+        
+        const iAmChallenger = myId !== null && challengerId !== undefined
+          ? myId === Number(challengerId)
+          : true;
+        
+        if (iAmChallenger) {
+          setPlayer1Score(data.player1Score ?? 0);
+          setPlayer2Score(data.player2Score ?? 0);
+        } else {
+          setPlayer1Score(data.player2Score ?? 0);
+          setPlayer2Score(data.player1Score ?? 0);
+        }
+        
+        setWinnerId(data.winnerId != null ? Number(data.winnerId) : null);
+        sessionStorage.setItem("matchEnded", "true");
         setGameState("results");
       },
       onError: (err) => {
@@ -200,9 +241,10 @@ const Gameplay = () => {
       ...prev,
       {
         questionNumber: currentQuestionIndex + 1,
+        questionId: currentQuestion?.id,
         question: currentQuestion?.question ?? "",
         answer: value,
-        isCorrect: false, // updated when server responds
+        isCorrect: false, // updated when server responds via answer_recorded
         timeInSeconds: currentQuestion?.timeLimit - timeLeftRef.current,
       },
     ]);
@@ -210,7 +252,7 @@ const Gameplay = () => {
     setTimeout(() => moveToNextQuestion(), 2000);
   };
 
-  const moveToNextQuestion = () => {
+  const moveToNextQuestion = useCallback(() => {
     if (currentQuestionIndex < totalQuestions - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
       setTimeLeft(questions[currentQuestionIndex + 1]?.timeLimit ?? 10);
@@ -221,20 +263,42 @@ const Gameplay = () => {
       setIsAnswerRevealed(false);
       setIsOpponentTurn(Math.random() > 0.5);
     } else {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const mins = Math.floor(elapsed / 60);
-      const secs = elapsed % 60;
-      setTotalPlayTime(`${mins.toString().padStart(2, "0")}min ${secs.toString().padStart(2, "0")}secs`);
-      setGameState("results");
+      // Last question answered — wait for match_ended from server (up to 5s)
+      setTimeout(() => {
+        setGameState((prev) => {
+          if (prev !== "results") {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const mins = Math.floor(elapsed / 60);
+            const secs = elapsed % 60;
+            setTotalPlayTime(`${mins.toString().padStart(2, "0")}min ${secs.toString().padStart(2, "0")}secs`);
+            sessionStorage.setItem("matchEnded", "true");
+            return "results";
+          }
+          return prev;
+        });
+      }, 5000);
     }
-  };
+  }, [currentQuestionIndex, totalQuestions, questions, startTime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleIntroComplete = () => {
     setGameState("playing");
     setStartTime(Date.now());
   };
 
-  const isVictory = player1Score > player2Score;
+  // Determine if current user won using winnerId from server
+  const currentUserId = (() => {
+    try {
+      const token = sessionStorage.getItem("auth_token");
+      if (!token) return null;
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return Number(payload?.id ?? null);
+    } catch { return null; }
+  })();
+
+  // winnerId === 0 means draw/no winner (e.g. forfeit with no clear winner)
+  const isVictory = winnerId != null && winnerId !== 0 && currentUserId !== null
+    ? winnerId === currentUserId
+    : player1Score > player2Score;
 
   if (gameState === "intro") {
     return <ChallengeIntro player1={player1} player2={player2} onComplete={handleIntroComplete} />;
@@ -263,6 +327,7 @@ const Gameplay = () => {
               onShareResults={() => {}}
               onReturnToLobby={() => {
                 sessionStorage.removeItem("currentMatch");
+                sessionStorage.removeItem("matchEnded");
                 navigate("/lobby");
               }}
             />
@@ -272,11 +337,18 @@ const Gameplay = () => {
     );
   }
 
-  // No questions yet — show loading
+  // No questions yet — show loading with timeout fallback
   if (!currentQuestion) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-muted-foreground">Loading match...</p>
+        <button
+          onClick={() => { sessionStorage.removeItem("currentMatch"); navigate("/lobby"); }}
+          className="text-xs text-muted-foreground underline mt-2"
+        >
+          Back to lobby
+        </button>
       </div>
     );
   }

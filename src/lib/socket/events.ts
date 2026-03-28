@@ -13,15 +13,20 @@ export interface MatchStartedPayload {
 
 export interface AnswerRecordedPayload {
   questionId: string;
-  correct: boolean;
-  correctAnswer: string;
-  pointsEarned: number;
+  success?: boolean;
+  correct?: boolean;
+  isCorrect?: boolean;
+  correctAnswer?: string;
+  pointsEarned?: number;
+  responseTime?: number;
 }
 
 export interface OpponentProgressPayload {
   opponentId: string;
   score: number;
   answeredCorrectly: boolean;
+  answersCount?: number;
+  totalQuestions?: number;
 }
 
 export interface MatchEndedPayload {

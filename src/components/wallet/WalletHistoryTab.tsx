@@ -1,7 +1,7 @@
 import { useState } from "react";
 import TransactionRow from "./TransactionRow";
 import { useChutaTransactions } from "@/hooks/useChutaWallet";
-import { mockTransactions, TX_LABELS } from "@/data/walletData";
+import { TX_LABELS } from "@/data/walletData";
 import type { TransactionType } from "@/lib/api/chutaWallet";
 
 const TYPE_FILTERS: { label: string; value: TransactionType | "all" }[] = [
@@ -20,7 +20,7 @@ const WalletHistoryTab = () => {
     typeFilter !== "all" ? { type: typeFilter } : {}
   );
 
-  const transactions = data?.transactions ?? mockTransactions;
+  const transactions = data?.transactions ?? [];
   const filtered = typeFilter === "all"
     ? transactions
     : transactions.filter((t) => t.type === typeFilter);

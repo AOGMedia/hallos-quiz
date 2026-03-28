@@ -46,12 +46,19 @@ const Lobby = () => {
 
   // Listen for challenge lifecycle socket events while in waiting state
   useEffect(() => {
+    const getMyId = () => {
+      try {
+        const token = sessionStorage.getItem("auth_token");
+        if (!token) return null;
+        return Number(JSON.parse(atob(token.split(".")[1]))?.id);
+      } catch { return null; }
+    };
+
     onChallengeAccepted((payload) => {
       if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
       soundEngine.stopBellLoop();
       soundEngine.play("start_challenge");
       setModalState("accepted");
-      // Store match data for Gameplay
       const stored = sessionStorage.getItem("userProfile");
       const me = stored ? JSON.parse(stored) : { nickname: "You", avatar: "" };
       sessionStorage.setItem("currentMatch", JSON.stringify({
@@ -59,6 +66,7 @@ const Lobby = () => {
         player1: { name: me.nickname, avatar: me.avatar },
         player2: { name: payload.opponent.nickname, avatar: payload.opponent.avatarUrl },
         questions: payload.questions,
+        challengerId: getMyId(), // I created the challenge, so I'm the challenger
       }));
       setTimeout(() => navigate("/game"), 1500);
     });
@@ -242,6 +250,7 @@ const Lobby = () => {
                   ? { name: challenger.nickname, avatar: challenger.avatarUrl }
                   : { name: "Opponent", avatar: "" },
                 questions: questions ?? [],
+                challengerId: challenger?.userId, // challenger is player1 in backend
               }));
               navigate("/game");
             }}

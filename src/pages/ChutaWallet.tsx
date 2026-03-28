@@ -7,7 +7,6 @@ import WalletHistoryTab from "@/components/wallet/WalletHistoryTab";
 import { WALLET_TABS, type WalletTab } from "@/components/wallet/walletTypes";
 import { useChutaBalance, useChutaTransactions } from "@/hooks/useChutaWallet";
 import { useChutaWalletStore } from "@/store/chutaWalletStore";
-import { mockTransactions } from "@/data/walletData";
 
 const PREVIEW_COUNT = 4;
 
@@ -20,7 +19,7 @@ const ChutaWallet = () => {
 
   // Transactions for balance tab preview
   const { data: txData } = useChutaTransactions();
-  const transactions = txData?.transactions ?? mockTransactions;
+  const transactions = txData?.transactions ?? [];
 
   const totalEarned = transactions
     .filter((t) => Number(t.amount) > 0)
