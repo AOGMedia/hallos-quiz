@@ -56,12 +56,15 @@ const AnswerOption = ({
       )}
     >
       <div className="flex items-center gap-3">
-        {getIcon() || <span className="text-xs text-muted-foreground">{label}</span>}
-        <span className="text-sm text-foreground">{value}</span>
+        <span className="text-xs font-medium text-muted-foreground uppercase w-4 shrink-0">{value}</span>
+        <span className="text-sm text-foreground text-left">{label}</span>
       </div>
-      {points && state === "correct" && (
-        <span className="text-xs text-accent font-medium">⚡ +{points}</span>
-      )}
+      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+        {getIcon()}
+        {points && state === "correct" && (
+          <span className="text-xs text-accent font-medium">⚡ +{points}</span>
+        )}
+      </div>
     </button>
   );
 };

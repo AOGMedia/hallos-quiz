@@ -14,6 +14,7 @@ import { avatars } from "@/data/gameData";
 import { useForfeitMatch } from "@/hooks/useChallenge";
 import { joinMatch, submitAnswer } from "@/lib/socket/emitters";
 import { attachMatchEvents, detachMatchEvents } from "@/lib/socket/events";
+import { getSocket } from "@/lib/socket/socket";
 import type { MatchQuestion } from "@/lib/api/lobby";
 import type { GameResult } from "@/data/quizData";
 
@@ -57,13 +58,26 @@ const Gameplay = () => {
     rawQuestions.map((q) => buildQuestion(q))
   );
 
+  // Join match room immediately on mount so we don't miss early socket events
   useEffect(() => {
-    // Redirect if no match data or match already ended
-    if (!matchRaw || sessionStorage.getItem("matchEnded") === "true") {
-      sessionStorage.removeItem("matchEnded");
-      navigate("/lobby", { replace: true });
+    if (matchId) joinMatch(matchId);
+  }, [matchId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const finalScores = match?.finalScores as { p1: number; p2: number; winnerId: string | number } | undefined;
+  useEffect(() => {
+    if (!matchRaw) { navigate("/lobby", { replace: true }); return; }
+    if (sessionStorage.getItem("matchEnded") === "true") {
+      if (finalScores) {
+        // Restore results state from stored scores
+        setPlayer1Score(finalScores.p1);
+        setPlayer2Score(finalScores.p2);
+        setWinnerId(finalScores.winnerId != null ? Number(finalScores.winnerId) : null);
+        setGameState("results");
+      } else {
+        sessionStorage.removeItem("matchEnded");
+        navigate("/lobby", { replace: true });
+      }
     }
-  }, [matchRaw, navigate]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [gameState, setGameState] = useState<GameState>("intro");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -75,7 +89,8 @@ const Gameplay = () => {
   const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
   const [gameResults, setGameResults] = useState<GameResult[]>([]);
   const [showResultsBreakdown, setShowResultsBreakdown] = useState(false);
-  const [isOpponentTurn, setIsOpponentTurn] = useState(false);
+  const [opponentAnsweredCount, setOpponentAnsweredCount] = useState(0);
+  const [socketDisconnected, setSocketDisconnected] = useState(false);
   const [startTime, setStartTime] = useState<number>(Date.now());
   const [totalPlayTime, setTotalPlayTime] = useState("00min 00secs");
   const [showForfeit, setShowForfeit] = useState(false);
@@ -93,8 +108,28 @@ const Gameplay = () => {
   useEffect(() => {
     if (gameState !== "playing" || !matchId) return;
 
-    // Join the match room immediately
-    joinMatch(matchId);
+    const socket = getSocket();
+
+    const handleDisconnect = (reason: string) => {
+      if (reason === "io server disconnect") {
+        // Server intentionally ended the connection — match is over.
+        // Transition to results with whatever scores we have accumulated.
+        setSocketDisconnected(true);
+        setGameState((prev) => {
+          if (prev !== "results") {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const mins = Math.floor(elapsed / 60);
+            const secs = elapsed % 60;
+            setTotalPlayTime(`${mins.toString().padStart(2, "0")}min ${secs.toString().padStart(2, "0")}secs`);
+            sessionStorage.setItem("matchEnded", "true");
+            return "results";
+          }
+          return prev;
+        });
+      }
+    };
+
+    socket.on("disconnect", handleDisconnect);
 
     attachMatchEvents({
       onMatchStarted: (data) => {
@@ -129,21 +164,20 @@ const Gameplay = () => {
         if (isCorrect) setPlayer1Score((s) => s + (data.pointsEarned || 5));
       },
       onOpponentProgress: (data) => {
-        // Use real score from backend if available, otherwise increment by 5
-        if (data.score !== undefined) {
-          setPlayer2Score(data.score);
-        } else if (data.answeredCorrectly) {
-          setPlayer2Score((s) => s + 5);
+        // score = cumulative correct answer count (not points), multiply by 5 for display
+        if (typeof data.score === "number") {
+          setPlayer2Score(data.score * 5);
         }
-        setIsOpponentTurn(false);
+        if (typeof data.answersCount === "number") {
+          setOpponentAnsweredCount(data.answersCount);
+        }
       },
       onMatchEnded: (data) => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         const mins = Math.floor(elapsed / 60);
         const secs = elapsed % 60;
         setTotalPlayTime(`${mins.toString().padStart(2, "0")}min ${secs.toString().padStart(2, "0")}secs`);
-        
-        // Backend sends player1Score = challenger's score, player2Score = opponent's score
+
         const challengerId = match?.challengerId as number | undefined;
         const myId = (() => {
           try {
@@ -152,11 +186,12 @@ const Gameplay = () => {
             return Number(JSON.parse(atob(token.split(".")[1]))?.id);
           } catch { return null; }
         })();
-        
+
         const iAmChallenger = myId !== null && challengerId !== undefined
           ? myId === Number(challengerId)
           : true;
-        
+
+        // player1Score = challenger's points, player2Score = opponent's points
         if (iAmChallenger) {
           setPlayer1Score(data.player1Score ?? 0);
           setPlayer2Score(data.player2Score ?? 0);
@@ -164,9 +199,17 @@ const Gameplay = () => {
           setPlayer1Score(data.player2Score ?? 0);
           setPlayer2Score(data.player1Score ?? 0);
         }
-        
+
         setWinnerId(data.winnerId != null ? Number(data.winnerId) : null);
         sessionStorage.setItem("matchEnded", "true");
+        // Store final scores so refresh shows results, not a restart
+        const stored = sessionStorage.getItem("currentMatch");
+        if (stored) {
+          try {
+            const m = JSON.parse(stored);
+            sessionStorage.setItem("currentMatch", JSON.stringify({ ...m, finalScores: { p1: iAmChallenger ? (data.player1Score ?? 0) : (data.player2Score ?? 0), p2: iAmChallenger ? (data.player2Score ?? 0) : (data.player1Score ?? 0), winnerId: data.winnerId } }));
+          } catch { /* ignore */ }
+        }
         setGameState("results");
       },
       onError: (err) => {
@@ -174,7 +217,10 @@ const Gameplay = () => {
       },
     });
 
-    return () => detachMatchEvents();
+    return () => {
+      socket.off("disconnect", handleDisconnect);
+      detachMatchEvents();
+    };
   }, [gameState, matchId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Timer ──────────────────────────────────────────────────────────────────
@@ -261,9 +307,8 @@ const Gameplay = () => {
       selectedAnswerRef.current = null;
       setAnswerStates({});
       setIsAnswerRevealed(false);
-      setIsOpponentTurn(Math.random() > 0.5);
     } else {
-      // Last question answered — wait for match_ended from server (up to 5s)
+      // All questions done — wait up to 5s for match_ended from server
       setTimeout(() => {
         setGameState((prev) => {
           if (prev !== "results") {
@@ -359,16 +404,26 @@ const Gameplay = () => {
       <GameplayHeader
         player1={{ ...player1, score: player1Score }}
         player2={{ ...player2, score: player2Score }}
+        questionNumber={currentQuestionIndex + 1}
+        totalQuestions={totalQuestions}
       />
+
+      {/* Disconnect banner — non-blocking, game timer keeps running */}
+      {socketDisconnected && (
+        <div className="mx-4 sm:mx-6 mb-2 px-3 py-2 bg-warning/10 border border-warning/30 rounded-lg flex items-center gap-2 text-xs text-warning max-w-2xl mx-auto w-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-warning shrink-0" />
+          Connection lost — your answers are still being recorded. Finish the quiz normally.
+        </div>
+      )}
       <main className="flex-1 px-4 sm:px-6 py-4 max-w-2xl mx-auto w-full">
         <QuestionCard
           questionNumber={currentQuestionIndex + 1}
+          totalQuestions={totalQuestions}
           question={currentQuestion.question}
           isBonus={currentQuestion.isBonus}
-          currentPlayer={player1}
-          opponentPlayer={player2}
           timeLeft={timeLeft}
-          isOpponentTurn={isOpponentTurn}
+          hasAnswered={isAnswerRevealed}
+          opponentAnsweredCount={opponentAnsweredCount}
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {currentQuestion.options.map((option) => (

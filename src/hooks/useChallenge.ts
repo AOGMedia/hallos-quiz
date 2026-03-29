@@ -15,11 +15,7 @@ import {
 export function useCategories() {
   return useQuery({
     queryKey: ["quiz", "categories"],
-    queryFn: async () => {
-      const res = await fetchCategories();
-      console.log("[useCategories] response:", res);
-      return res;
-    },
+    queryFn: () => fetchCategories(),
     staleTime: 5 * 60_000,
   });
 }
@@ -33,11 +29,7 @@ export function useCreateChallenge() {
 export function useChallenges(params: GetChallengesParams = {}) {
   return useQuery({
     queryKey: ["lobby", "challenges", params],
-    queryFn: async () => {
-      const res = await getChallenges(params);
-      console.log("[useChallenges] response:", res);
-      return res;
-    },
+    queryFn: () => getChallenges(params),
     staleTime: 15_000,
   });
 }

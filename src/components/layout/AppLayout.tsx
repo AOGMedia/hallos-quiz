@@ -74,6 +74,8 @@ const AppLayout = () => {
   const [showExit, setShowExit] = useState(false);
   const [incomingChallenge, setIncomingChallenge] = useState<IncomingChallengePayload | null>(null);
   const [onlineCount, setOnlineCount] = useState(0);
+  const [acceptingChallenge, setAcceptingChallenge] = useState(false);
+  const [acceptError, setAcceptError] = useState<string | null>(null);
   const [counterOfferError, setCounterOfferError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -154,7 +156,11 @@ const AppLayout = () => {
   const handleExitConfirm = () => {
     setShowExit(false);
     sessionStorage.removeItem("userProfile");
-    navigate("/");
+    sessionStorage.removeItem("auth_token");
+    sessionStorage.removeItem("currentMatch");
+    sessionStorage.removeItem("matchEnded");
+    const parentUrl = import.meta.env.VITE_PARENT_APP_URL ?? "http://localhost:3000";
+    window.location.href = `${parentUrl}/dashboard`;
   };
 
   return (
@@ -201,10 +207,16 @@ const AppLayout = () => {
             Math.floor((new Date(incomingChallenge.expiresAt).getTime() - Date.now()) / 1000)
           )}
           onAccept={() => {
+            if (acceptingChallenge) return;
+            setAcceptingChallenge(true);
+            setAcceptError(null);
             acceptChallenge(incomingChallenge.challengeId, {
               onSuccess: (res) => {
-                if (res.success) {
+                setAcceptingChallenge(false);
+                // Navigate as long as we have a matchId — don't rely solely on success flag
+                if (res.matchId) {
                   setIncomingChallenge(null);
+                  sessionStorage.removeItem("matchEnded"); // clear any stale flag from previous match
                   sessionStorage.setItem("currentMatch", JSON.stringify({
                     matchId: res.matchId,
                     player1: { name: userProfile.nickname, avatar: userProfile.avatar },
@@ -212,10 +224,19 @@ const AppLayout = () => {
                       name: incomingChallenge.challenger.nickname,
                       avatar: incomingChallenge.challenger.avatarUrl,
                     },
-                    questions: res.questions,
+                    questions: res.questions ?? [],
+                    challengerId: incomingChallenge.challenger.userId,
                   }));
                   navigate("/game");
+                } else {
+                  setAcceptError("Could not start match — challenge may have expired");
                 }
+              },
+              onError: (err) => {
+                setAcceptingChallenge(false);
+                // Even on error, if it's a network blip the match may have started
+                // Show error but don't close modal so user can retry
+                setAcceptError((err as Error).message ?? "Failed to accept — please try again");
               },
             });
           }}
@@ -235,8 +256,10 @@ const AppLayout = () => {
               }
             );
           }}
-          onClose={() => setIncomingChallenge(null)}
+          onClose={() => { setIncomingChallenge(null); setAcceptError(null); setAcceptingChallenge(false); }}
           counterError={counterOfferError}
+          acceptError={acceptError}
+          isAccepting={acceptingChallenge}
         />
       )}
     </div>
@@ -244,3 +267,4 @@ const AppLayout = () => {
 };
 
 export default AppLayout;
+

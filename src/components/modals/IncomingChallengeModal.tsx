@@ -22,6 +22,8 @@ interface IncomingChallengeModalProps {
   onCounter: (newAmount: number) => void;
   onClose: () => void;
   counterError?: string | null;
+  acceptError?: string | null;
+  isAccepting?: boolean;
 }
 
 const COUNTER_PRESETS = [50, 100, 200, 500];
@@ -37,6 +39,8 @@ const IncomingChallengeModal = ({
   onCounter,
   onClose,
   counterError: externalCounterError,
+  acceptError,
+  isAccepting = false,
 }: IncomingChallengeModalProps) => {
   const [timeLeft, setTimeLeft] = useState(expiresInSeconds);
   const [showCounter, setShowCounter] = useState(false);
@@ -153,25 +157,38 @@ const IncomingChallengeModal = ({
 
         {/* Action buttons */}
         {!showCounter && (
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={onDecline}
-              className="py-3 rounded-xl border border-destructive/50 text-destructive hover:bg-destructive/10 text-xs sm:text-sm font-medium transition-colors"
-            >
-              Decline
-            </button>
-            <button
-              onClick={() => setShowCounter(true)}
-              className="py-3 rounded-xl border border-warning/50 text-warning hover:bg-warning/10 text-xs sm:text-sm font-medium transition-colors"
-            >
-              Counter
-            </button>
-            <button
-              onClick={onAccept}
-              className="py-3 rounded-xl bg-success hover:bg-success/90 text-background text-xs sm:text-sm font-semibold transition-colors"
-            >
-              Accept
-            </button>
+          <div className="space-y-2">
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={onDecline}
+                disabled={isAccepting}
+                className="py-3 rounded-xl border border-destructive/50 text-destructive hover:bg-destructive/10 text-xs sm:text-sm font-medium transition-colors disabled:opacity-40"
+              >
+                Decline
+              </button>
+              <button
+                onClick={() => setShowCounter(true)}
+                disabled={isAccepting}
+                className="py-3 rounded-xl border border-warning/50 text-warning hover:bg-warning/10 text-xs sm:text-sm font-medium transition-colors disabled:opacity-40"
+              >
+                Counter
+              </button>
+              <button
+                onClick={onAccept}
+                disabled={isAccepting}
+                className="py-3 rounded-xl bg-success hover:bg-success/90 text-background text-xs sm:text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+              >
+                {isAccepting ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-background/40 border-t-background rounded-full animate-spin" />
+                    <span>Joining…</span>
+                  </>
+                ) : "Accept"}
+              </button>
+            </div>
+            {acceptError && (
+              <p className="text-xs text-destructive text-center animate-in slide-in-from-bottom-1 duration-200">{acceptError}</p>
+            )}
           </div>
         )}
       </div>

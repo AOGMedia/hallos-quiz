@@ -9,6 +9,7 @@ import { soundEngine } from "@/lib/soundEngine";
 import { useLobbyPlayers } from "@/hooks/useLobbyPlayers";
 import { useCreateChallenge } from "@/hooks/useChallenge";
 import type { LobbyPlayer } from "@/lib/api/lobby";
+import { getSocket } from "@/lib/socket/socket";
 import {
   onChallengeAccepted, offChallengeAccepted,
   onChallengeDeclined, offChallengeDeclined,
@@ -44,7 +45,11 @@ const Lobby = () => {
   const { data, isLoading } = useLobbyPlayers(page);
   const { mutate: createChallenge, isPending: isCreatingChallenge } = useCreateChallenge();
 
-  // Listen for challenge lifecycle socket events while in waiting state
+  // Listen for challenge lifecycle socket events
+  // Use refs for callbacks so we don't need to re-register on every render
+  const navigateRef = useRef(navigate);
+  useEffect(() => { navigateRef.current = navigate; }, [navigate]);
+
   useEffect(() => {
     const getMyId = () => {
       try {
@@ -54,50 +59,94 @@ const Lobby = () => {
       } catch { return null; }
     };
 
-    onChallengeAccepted((payload) => {
+    const handleChallengeAccepted = (payload: import("@/lib/socket/events").ChallengeAcceptedPayload) => {
       if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
       soundEngine.stopBellLoop();
       soundEngine.play("start_challenge");
       setModalState("accepted");
       const stored = sessionStorage.getItem("userProfile");
       const me = stored ? JSON.parse(stored) : { nickname: "You", avatar: "" };
+      sessionStorage.removeItem("matchEnded");
       sessionStorage.setItem("currentMatch", JSON.stringify({
         matchId: payload.matchId,
         player1: { name: me.nickname, avatar: me.avatar },
         player2: { name: payload.opponent.nickname, avatar: payload.opponent.avatarUrl },
         questions: payload.questions,
-        challengerId: getMyId(), // I created the challenge, so I'm the challenger
+        challengerId: getMyId(),
       }));
-      setTimeout(() => navigate("/game"), 1500);
-    });
+      setTimeout(() => navigateRef.current("/game"), 1500);
+    };
 
-    onChallengeDeclined((payload) => {
-      if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
-      soundEngine.stopBellLoop();
-      setModalState("rejected");
-    });
+    const registerListeners = () => {
+      offChallengeAccepted();
+      offChallengeDeclined();
+      offChallengeTimeout();
+      offChallengeCounter();
+      onChallengeAccepted(handleChallengeAccepted);
+      onChallengeDeclined((payload) => {
+        if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
+        soundEngine.stopBellLoop();
+        setModalState("rejected");
+      });
+      onChallengeTimeout((payload) => {
+        if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
+        soundEngine.stopBellLoop();
+        setModalState("timeout");
+      });
+      onChallengeCounter((payload) => {
+        if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
+        setCounterOffer({ amount: payload.newWagerAmount, opponentNickname: payload.opponentNickname });
+        setModalState("counter" as ModalState);
+      });
+    };
 
-    onChallengeTimeout((payload) => {
-      if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
-      soundEngine.stopBellLoop();
-      setModalState("timeout");
-    });
+    registerListeners();
 
-    onChallengeCounter((payload) => {
-      if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
-      setCounterOffer({ amount: payload.newWagerAmount, opponentNickname: payload.opponentNickname });
-      setModalState("counter" as ModalState);
+    // Re-register on socket reconnect so we don't miss events after disconnect
+    const socket = getSocket();
+    socket.on("connect", () => {
+      registerListeners();
     });
 
     return () => {
+      socket.off("connect", registerListeners);
       offChallengeAccepted();
       offChallengeDeclined();
       offChallengeTimeout();
       offChallengeCounter();
     };
-  }, [navigate]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Use real players only — no mock fallback (fake data causes confusing challenge failures)
+  // Poll for match start when waiting — fallback if socket event is missed
+  useEffect(() => {
+    if (modalState !== "waiting" || !challengeId) return;
+
+    const getMyId = () => {
+      try {
+        const token = sessionStorage.getItem("auth_token");
+        if (!token) return null;
+        return Number(JSON.parse(atob(token.split(".")[1]))?.id);
+      } catch { return null; }
+    };
+
+    const poll = setInterval(async () => {
+      try {
+        const { getChallenges } = await import("@/lib/api/lobby");
+        // Poll for active challenges — if our challenge moved to active, the match started
+        const res = await getChallenges({ status: "active" as import("@/lib/api/lobby").ChallengeStatus });
+        const active = res.challenges.find((c) => c.id === challengeId);
+        if (!active) return;
+
+        // Match started but we missed the socket event
+        // The challenge object doesn't have matchId, so we need to ask backend
+        // For now show a clear message so user knows what happened
+        clearInterval(poll);
+        setChallengeError("Your opponent accepted! Tap 'Refresh' to check or wait for the match to load.");
+      } catch { /* ignore poll errors */ }
+    }, 2500);
+
+    return () => clearInterval(poll);
+  }, [modalState, challengeId]);
   const players = (data?.players ?? []).filter((p) =>
     searchQuery === "" || p.nickname.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -243,6 +292,7 @@ const Lobby = () => {
               soundEngine.play("start_challenge");
               const stored = sessionStorage.getItem("userProfile");
               const me = stored ? JSON.parse(stored) : { nickname: "You", avatar: "" };
+              sessionStorage.removeItem("matchEnded"); // clear stale flag from previous match
               sessionStorage.setItem("currentMatch", JSON.stringify({
                 matchId,
                 player1: { name: me.nickname, avatar: me.avatar },
