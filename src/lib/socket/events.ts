@@ -48,7 +48,7 @@ export const attachMatchEvents = (handlers: MatchEventHandlers): void => {
   const socket = getSocket();
   socket.on("match_started", handlers.onMatchStarted);
   socket.on("answer_recorded", handlers.onAnswerRecorded);
-  socket.on("opponent_progress", handlers.onOpponentProgress);
+  // opponent_progress is handled by Gameplay's persistent listener
   socket.on("match_ended", handlers.onMatchEnded);
   socket.on("error", handlers.onError);
 };
@@ -57,7 +57,7 @@ export const detachMatchEvents = (): void => {
   const socket = getSocket();
   socket.off("match_started");
   socket.off("answer_recorded");
-  socket.off("opponent_progress");
+  // opponent_progress is managed by Gameplay's persistent listener — don't remove it here
   socket.off("match_ended");
   socket.off("error");
 };

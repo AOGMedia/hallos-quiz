@@ -62,6 +62,23 @@ const Gameplay = () => {
   useEffect(() => {
     if (matchId) joinMatch(matchId);
   }, [matchId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Listen for opponent_progress from mount (not just when playing)
+  // so we don't miss events during the intro animation
+  useEffect(() => {
+    if (!matchId) return;
+    const socket = getSocket();
+    const handler = (data: { score?: number; answersCount?: number; answeredCorrectly?: boolean }) => {
+      if (typeof data.score === "number") {
+        setPlayer2Score(data.score);
+      }
+      if (typeof data.answersCount === "number") {
+        setOpponentAnsweredCount(data.answersCount);
+      }
+    };
+    socket.on("opponent_progress", handler);
+    return () => { socket.off("opponent_progress", handler); };
+  }, [matchId]); // eslint-disable-line react-hooks/exhaustive-deps
   const finalScores = match?.finalScores as { p1: number; p2: number; winnerId: string | number } | undefined;
   useEffect(() => {
     if (!matchRaw) { navigate("/lobby", { replace: true }); return; }
@@ -161,16 +178,17 @@ const Gameplay = () => {
           else if (opt.value === selectedAnswerRef.current && !isCorrect) newStates[opt.value] = "wrong";
         });
         setAnswerStates(newStates);
-        if (isCorrect) setPlayer1Score((s) => s + (data.pointsEarned || 5));
+        // Track points earned for display on the AnswerOption
+        if (typeof data.pointsEarned === "number") {
+          setAnswerStates(prev => ({ ...prev, _points: data.pointsEarned as unknown as AnswerState }));
+        }
+
+        if (isCorrect && typeof data.pointsEarned === "number") {
+          setPlayer1Score((s) => s + data.pointsEarned!);
+        }
       },
-      onOpponentProgress: (data) => {
-        // score = cumulative correct answer count (not points), multiply by 5 for display
-        if (typeof data.score === "number") {
-          setPlayer2Score(data.score * 5);
-        }
-        if (typeof data.answersCount === "number") {
-          setOpponentAnsweredCount(data.answersCount);
-        }
+      onOpponentProgress: (_data) => {
+        // Handled by the persistent early listener (mounted on component mount)
       },
       onMatchEnded: (data) => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
@@ -243,6 +261,17 @@ const Gameplay = () => {
   const handleTimeUp = useCallback(() => {
     if (!currentQuestion) return;
     setIsAnswerRevealed(true);
+
+    // Explicitly tell the backend we timed out so it records 10 out of 10 answers completed
+    if (matchId) {
+      submitAnswer({
+        matchId,
+        questionId: currentQuestion.id,
+        answer: "timeout",
+        timeInSeconds: currentQuestion.timeLimit,
+      });
+    }
+
     // If we have a correct answer from server, show it; otherwise just reveal
     const correctAnswer = currentQuestion.correctAnswer;
     if (correctAnswer) {
@@ -341,9 +370,10 @@ const Gameplay = () => {
   })();
 
   // winnerId === 0 means draw/no winner (e.g. forfeit with no clear winner)
+  // winnerId === null means the match hasn't officially concluded (waiting for opponent)
   const isVictory = winnerId != null && winnerId !== 0 && currentUserId !== null
     ? winnerId === currentUserId
-    : player1Score > player2Score;
+    : null;
 
   if (gameState === "intro") {
     return <ChallengeIntro player1={player1} player2={player2} onComplete={handleIntroComplete} />;
@@ -432,7 +462,7 @@ const Gameplay = () => {
               label={option.label}
               value={option.value}
               state={answerStates[option.value] || "default"}
-              points={answerStates[option.value] === "correct" ? (currentQuestion.isBonus ? 7 : 5) : undefined}
+              points={answerStates[option.value] === "correct" ? (answerStates._points as unknown as number) : undefined}
               onClick={() => handleAnswerSelect(option.value)}
               disabled={isAnswerRevealed}
             />

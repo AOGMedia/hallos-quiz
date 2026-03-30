@@ -13,6 +13,7 @@ import {
   offPlayersUpdated,
   type IncomingChallengePayload,
 } from "@/lib/socket/events";
+import { joinMatch } from "@/lib/socket/emitters";
 import { useAcceptChallenge, useDeclineChallenge, useCounterOffer } from "@/hooks/useChallenge";
 import { useChutaBalance } from "@/hooks/useChutaWallet";
 import { useChutaWalletStore } from "@/store/chutaWalletStore";
@@ -216,7 +217,7 @@ const AppLayout = () => {
                 // Navigate as long as we have a matchId — don't rely solely on success flag
                 if (res.matchId) {
                   setIncomingChallenge(null);
-                  sessionStorage.removeItem("matchEnded"); // clear any stale flag from previous match
+                  sessionStorage.removeItem("matchEnded");
                   sessionStorage.setItem("currentMatch", JSON.stringify({
                     matchId: res.matchId,
                     player1: { name: userProfile.nickname, avatar: userProfile.avatar },
@@ -227,6 +228,8 @@ const AppLayout = () => {
                     questions: res.questions ?? [],
                     challengerId: incomingChallenge.challenger.userId,
                   }));
+                  // Join match room immediately so we don't miss opponent_progress events
+                  joinMatch(res.matchId);
                   navigate("/game");
                 } else {
                   setAcceptError("Could not start match — challenge may have expired");

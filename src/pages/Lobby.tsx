@@ -7,7 +7,7 @@ import ChallengeStatusModal from "@/components/modals/ChallengeStatusModal";
 import ChallengeBoardTab from "@/components/lobby/ChallengeBoardTab";
 import { soundEngine } from "@/lib/soundEngine";
 import { useLobbyPlayers } from "@/hooks/useLobbyPlayers";
-import { useCreateChallenge } from "@/hooks/useChallenge";
+import { useCreateChallenge, useAcceptChallenge, useDeclineChallenge } from "@/hooks/useChallenge";
 import type { LobbyPlayer } from "@/lib/api/lobby";
 import { getSocket } from "@/lib/socket/socket";
 import {
@@ -16,6 +16,7 @@ import {
   onChallengeTimeout, offChallengeTimeout,
   onChallengeCounter, offChallengeCounter,
 } from "@/lib/socket/events";
+import { joinMatch } from "@/lib/socket/emitters";
 
 type ModalState =
   | "none" | "challenge" | "confirm" | "waiting"
@@ -39,11 +40,13 @@ const Lobby = () => {
   const [wagerAmount, setWagerAmount] = useState(0);
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [challengeError, setChallengeError] = useState<string | null>(null);
-  const [counterOffer, setCounterOffer] = useState<{ amount: number; opponentNickname: string } | null>(null);
+  const [counterOffer, setCounterOffer] = useState<{ amount: number; opponentNickname: string; challengeId: string } | null>(null);
   const activeChallengeIdRef = useRef<string | null>(null);
 
   const { data, isLoading } = useLobbyPlayers(page);
   const { mutate: createChallenge, isPending: isCreatingChallenge } = useCreateChallenge();
+  const { mutate: acceptCounterChallenge } = useAcceptChallenge();
+  const { mutate: declineCounterChallenge } = useDeclineChallenge();
 
   // Listen for challenge lifecycle socket events
   // Use refs for callbacks so we don't need to re-register on every render
@@ -74,6 +77,8 @@ const Lobby = () => {
         questions: payload.questions,
         challengerId: getMyId(),
       }));
+      // Join match room immediately so we don't miss opponent_progress events
+      joinMatch(payload.matchId);
       setTimeout(() => navigateRef.current("/game"), 1500);
     };
 
@@ -95,7 +100,8 @@ const Lobby = () => {
       });
       onChallengeCounter((payload) => {
         if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
-        setCounterOffer({ amount: payload.newWagerAmount, opponentNickname: payload.opponentNickname });
+        // Store the counter-offer's new challengeId so we can accept/decline it
+        setCounterOffer({ amount: payload.newWagerAmount, opponentNickname: payload.opponentNickname, challengeId: payload.challengeId });
         setModalState("counter" as ModalState);
       });
     };
@@ -292,7 +298,7 @@ const Lobby = () => {
               soundEngine.play("start_challenge");
               const stored = sessionStorage.getItem("userProfile");
               const me = stored ? JSON.parse(stored) : { nickname: "You", avatar: "" };
-              sessionStorage.removeItem("matchEnded"); // clear stale flag from previous match
+              sessionStorage.removeItem("matchEnded");
               sessionStorage.setItem("currentMatch", JSON.stringify({
                 matchId,
                 player1: { name: me.nickname, avatar: me.avatar },
@@ -300,8 +306,10 @@ const Lobby = () => {
                   ? { name: challenger.nickname, avatar: challenger.avatarUrl }
                   : { name: "Opponent", avatar: "" },
                 questions: questions ?? [],
-                challengerId: challenger?.userId, // challenger is player1 in backend
+                challengerId: challenger?.userId,
               }));
+              // Join match room immediately
+              joinMatch(matchId);
               navigate("/game");
             }}
           />
@@ -332,12 +340,43 @@ const Lobby = () => {
           onEditTerms={() => setModalState("challenge")}
           onBackToLobby={closeModal}
           onAcceptCounter={() => {
-            if (counterOffer && challengeId) {
-              // Accept counter — navigate to game (backend handles match creation)
+            if (!counterOffer) return;
+            acceptCounterChallenge(counterOffer.challengeId, {
+              onSuccess: (res) => {
+                if (res.matchId) {
+                  closeModal();
+                  const stored = sessionStorage.getItem("userProfile");
+                  const me = stored ? JSON.parse(stored) : { nickname: "You", avatar: "" };
+                  sessionStorage.removeItem("matchEnded");
+                  sessionStorage.setItem("currentMatch", JSON.stringify({
+                    matchId: res.matchId,
+                    player1: { name: me.nickname, avatar: me.avatar },
+                    player2: selectedPlayer
+                      ? { name: selectedPlayer.nickname, avatar: selectedPlayer.avatarUrl }
+                      : { name: counterOffer.opponentNickname, avatar: "" },
+                    questions: res.questions ?? [],
+                    // In a counter-offer, the opponent who countered is now the challenger
+                    challengerId: res.challenger?.userId,
+                  }));
+                  joinMatch(res.matchId);
+                  navigate("/game");
+                }
+              },
+              onError: (err) => {
+                setChallengeError((err as Error).message ?? "Failed to accept counter offer");
+              },
+            });
+          }}
+          onDeclineCounter={() => {
+            if (counterOffer) {
+              declineCounterChallenge(counterOffer.challengeId, {
+                onSuccess: () => closeModal(),
+                onError: () => closeModal(),
+              });
+            } else {
               closeModal();
             }
           }}
-          onDeclineCounter={closeModal}
         />
       )}
     </>
