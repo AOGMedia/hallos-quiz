@@ -160,8 +160,13 @@ const AppLayout = () => {
     sessionStorage.removeItem("auth_token");
     sessionStorage.removeItem("currentMatch");
     sessionStorage.removeItem("matchEnded");
-    const parentUrl = import.meta.env.VITE_PARENT_APP_URL ?? "http://localhost:3000";
-    window.location.href = `${parentUrl}/dashboard`;
+    const parentUrl = import.meta.env.VITE_PARENT_APP_URL;
+    if (parentUrl) {
+      window.location.href = `${parentUrl}/dashboard`;
+    } else {
+      // Fallback: go to /dashboard on the parent origin (works for both local and prod)
+      window.location.href = `${window.location.protocol}//${window.location.hostname}:3000/dashboard`;
+    }
   };
 
   return (
