@@ -9,6 +9,7 @@ import ResultsHeader from "@/components/results/ResultsHeader";
 import ResultsScoreCard from "@/components/results/ResultsScoreCard";
 import ResultsBreakdown from "@/components/results/ResultsBreakdown";
 import ResultsActions from "@/components/results/ResultsActions";
+import ShareResultModal from "@/components/results/ShareResultModal";
 import ForfeitModal from "@/components/modals/ForfeitModal";
 import { avatars } from "@/data/gameData";
 import { useForfeitMatch } from "@/hooks/useChallenge";
@@ -38,7 +39,7 @@ function buildQuestion(q: MatchQuestion, timeLimit = 10): ActiveQuestion {
     question: q.questionText,
     options: Object.entries(q.options).map(([value, label]) => ({ label, value })),
     correctAnswer: null,
-    timeLimit,
+    timeLimit: Math.round(timeLimit),
   };
 }
 
@@ -83,6 +84,7 @@ const Gameplay = () => {
   const [questions, setQuestions] = useState<ActiveQuestion[]>(
     rawQuestions.map((q) => buildQuestion(q))
   );
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   // Join match room immediately on mount so we don't miss early socket events
   useEffect(() => {
@@ -138,7 +140,6 @@ const Gameplay = () => {
   const [totalPlayTime, setTotalPlayTime] = useState("00min 00secs");
   const [showForfeit, setShowForfeit] = useState(false);
   const [winnerId, setWinnerId] = useState<number | null>(null);
-  const [fetchingResults, setFetchingResults] = useState(false);
   const { mutate: forfeit } = useForfeitMatch();
 
   const selectedAnswerRef = useRef<string | null>(null);
@@ -185,8 +186,8 @@ const Gameplay = () => {
 
     attachMatchEvents({
       onMatchStarted: (data) => {
-        setTimeLeft(data.timeLimit ?? 10);
-        timeLeftRef.current = data.timeLimit ?? 10;
+        setTimeLeft(Math.round(data.timeLimit ?? 10));
+        timeLeftRef.current = Math.round(data.timeLimit ?? 10);
       },
       onAnswerRecorded: (data) => {
         const isCorrect = data.correct ?? data.isCorrect ?? false;
@@ -278,13 +279,17 @@ const Gameplay = () => {
 
   // ── Sync absolute source of truth upon hitting results ─────────
   useEffect(() => {
-    if (gameState === "results" && matchId && !fetchingResults) {
-      setFetchingResults(true);
+    if (gameState !== "results" || !matchId) return;
+
+    let attempts = 0;
+    const MAX_ATTEMPTS = 8;
+
+    const tryFetch = () => {
+      attempts++;
       getMatch(matchId).then((res) => {
         if (res.success && res.match) {
           const m = res.match;
-          setWinnerId(m.winnerId != null ? Number(m.winnerId) : null);
-          
+
           const currentUserId = (() => {
             try {
               const token = sessionStorage.getItem("auth_token");
@@ -293,18 +298,36 @@ const Gameplay = () => {
             } catch { return null; }
           })();
 
-          // If available use explicit UI mapping from participants array to guarantee 100% match!
-          // We know my user ID, so mapping is crystal clear without guessing challengerId.
           if (currentUserId && m.participants) {
-            const me = m.participants.find(p => p.userId === currentUserId);
-            const opp = m.participants.find(p => p.userId !== currentUserId);
-            
+            const me = m.participants.find((p: { userId: number }) => p.userId === currentUserId);
+            const opp = m.participants.find((p: { userId: number }) => p.userId !== currentUserId);
             if (me) setPlayer1Score(me.score || 0);
             if (opp) setPlayer2Score(opp.score || 0);
           }
+
+          if (m.winnerId != null) {
+            setWinnerId(Number(m.winnerId));
+            return; // done
+          }
         }
-      }).catch(err => console.error("Could not fetch final match stats:", err));
-    }
+        // winnerId still null — retry if attempts remain
+        if (attempts < MAX_ATTEMPTS) {
+          setTimeout(tryFetch, 1500);
+        } else {
+          // Backend never set winnerId — derive winner from scores we have
+          // Use -1 as sentinel to mean "resolved by score comparison, not server"
+          setWinnerId(-1);
+        }
+      }).catch(() => {
+        if (attempts < MAX_ATTEMPTS) {
+          setTimeout(tryFetch, 1500);
+        } else {
+          setWinnerId(-1);
+        }
+      });
+    };
+
+    tryFetch();
   }, [gameState, matchId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Timer ──────────────────────────────────────────────────────────────────
@@ -373,7 +396,7 @@ const Gameplay = () => {
         matchId,
         questionId: currentQuestion.id,
         answer: value,
-        timeInSeconds: currentQuestion.timeLimit - timeLeftRef.current,
+        timeInSeconds: Math.floor(currentQuestion.timeLimit - timeLeftRef.current),
       });
     }
 
@@ -435,9 +458,14 @@ const Gameplay = () => {
     } catch { return null; }
   })();
 
-  // winnerId === 0 means draw/no winner (e.g. forfeit with no clear winner)
-  // winnerId === null means the match hasn't officially concluded (waiting for opponent)
-  const isVictory = winnerId != null && winnerId !== 0 && currentUserId !== null
+  // winnerId === null: still waiting for server result
+  // winnerId === -1: server never resolved, fall back to score comparison
+  // winnerId === 0: draw/forfeit with no clear winner
+  const isVictory: boolean | null = winnerId === null
+    ? null
+    : winnerId === -1 || winnerId === 0
+    ? player1Score > player2Score
+    : currentUserId !== null
     ? winnerId === currentUserId
     : null;
 
@@ -465,7 +493,7 @@ const Gameplay = () => {
           {showResultsBreakdown && <ResultsBreakdown results={gameResults} />}
           <div className="w-full">
             <ResultsActions
-              onShareResults={() => {}}
+              onShareResults={() => setIsShareModalOpen(true)}
               onReturnToLobby={() => {
                 sessionStorage.removeItem("currentMatch");
                 sessionStorage.removeItem("matchEnded");
@@ -473,6 +501,12 @@ const Gameplay = () => {
               }}
             />
           </div>
+          <ShareResultModal 
+            isOpen={isShareModalOpen} 
+            onOpenChange={setIsShareModalOpen} 
+            playerScore={player1Score} 
+            isVictory={isVictory} 
+          />
         </main>
       </div>
     );

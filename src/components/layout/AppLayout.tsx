@@ -16,6 +16,7 @@ import {
   type IncomingChallengePayload,
 } from "@/lib/socket/events";
 import { joinMatch } from "@/lib/socket/emitters";
+import { fetchQuizProfile } from "@/lib/api/quizProfile";
 import { useAcceptChallenge, useDeclineChallenge, useCounterOffer } from "@/hooks/useChallenge";
 import { useChutaBalance } from "@/hooks/useChutaWallet";
 import { useChutaWalletStore } from "@/store/chutaWalletStore";
@@ -120,21 +121,17 @@ const AppLayout = () => {
       const payload = JSON.parse(atob(token.split(".")[1]));
       const userId = payload?.id;
       if (!userId) return;
-      import("@/lib/api/quizProfile").then(({ fetchQuizProfile }) => {
-        fetchQuizProfile(userId).then((res) => {
-          if (res.profile) {
-            const p = {
-              nickname: res.profile.nickname,
-              avatar: res.profile.avatarUrl ?? avatars[0],
-            };
-            sessionStorage.setItem("userProfile", JSON.stringify(p));
-            // Update Zustand store
-            import("@/store/quizProfileStore").then(({ useQuizProfileStore }) => {
-              useQuizProfileStore.getState().setProfile(res.profile);
-            });
-          }
-        }).catch(() => {});
-      });
+      fetchQuizProfile(userId).then((res) => {
+        if (res.profile) {
+          const p = {
+            nickname: res.profile.nickname,
+            avatar: res.profile.avatarUrl ?? avatars[0],
+          };
+          sessionStorage.setItem("userProfile", JSON.stringify(p));
+          // Update Zustand store
+          useQuizProfileStore.getState().setProfile(res.profile);
+        }
+      }).catch(() => {});
     } catch {
       // ignore
     }

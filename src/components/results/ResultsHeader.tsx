@@ -20,7 +20,7 @@ const ResultsHeader = ({ isVictory }: ResultsHeaderProps) => {
             isVictory === null ? "text-muted-foreground" : isVictory ? "text-accent" : "text-destructive"
           }`}
         >
-          {isVictory === null ? "CALCULATING..." : isVictory ? "VICTORY!" : "DEFEAT"}
+          {isVictory === null ? "Finalizing your match results..." : isVictory ? "VICTORY!" : "DEFEAT"}
         </h1>
         {isVictory === null && (
           <span className="text-xs sm:text-sm animate-pulse text-muted-foreground mt-2">Waiting for opponent to finish...</span>
