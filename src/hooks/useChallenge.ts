@@ -7,6 +7,8 @@ import {
   counterOffer,
   forfeitMatch,
   fetchCategories,
+  cancelChallenge,
+  getActiveMatch,
   type CreateChallengePayload,
   type GetChallengesParams,
   type CounterOfferPayload,
@@ -60,5 +62,28 @@ export function useCounterOffer() {
 export function useForfeitMatch() {
   return useMutation({
     mutationFn: (matchId: string) => forfeitMatch(matchId),
+  });
+}
+
+export function useCancelChallenge() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => cancelChallenge(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["lobby", "challenges"] }),
+  });
+}
+
+export function useActiveMatch() {
+  return useQuery({
+    queryKey: ["lobby", "active-match"],
+    queryFn: () => getActiveMatch(),
+    refetchInterval: (query) => {
+      // If we found a match, stop polling
+      if (query.state.data?.match) return false;
+      // Otherwise poll every 3 seconds to sync UX
+      return 3000;
+    },
+    // Only enable when explicitly needed (e.g. in Lobby "Waiting" state)
+    enabled: false,
   });
 }

@@ -14,7 +14,8 @@ import { avatars } from "@/data/gameData";
 import { useForfeitMatch } from "@/hooks/useChallenge";
 import { joinMatch, submitAnswer } from "@/lib/socket/emitters";
 import { attachMatchEvents, detachMatchEvents } from "@/lib/socket/events";
-import { getSocket } from "@/lib/socket/socket";
+import { getSocket, onConnectionChange } from "@/lib/socket/socket";
+import { getMatch } from "@/lib/api/lobby";
 import type { MatchQuestion } from "@/lib/api/lobby";
 import type { GameResult } from "@/data/quizData";
 
@@ -40,6 +41,31 @@ function buildQuestion(q: MatchQuestion, timeLimit = 10): ActiveQuestion {
     timeLimit,
   };
 }
+
+const LoadingFallback = ({ onBackToLobby }: { onBackToLobby: () => void }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onBackToLobby();
+    }, 10000); // 10 seconds timeout
+    return () => clearTimeout(timer);
+  }, [onBackToLobby]);
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <p className="text-sm text-muted-foreground">Loading match...</p>
+      <p className="text-xs text-muted-foreground/60 italic px-8 text-center">
+        Taking a while? We'll return you to the lobby if the match doesn't start in 10s.
+      </p>
+      <button
+        onClick={onBackToLobby}
+        className="text-xs text-muted-foreground underline mt-2"
+      >
+        Back to lobby
+      </button>
+    </div>
+  );
+};
 
 const Gameplay = () => {
   const navigate = useNavigate();
@@ -112,6 +138,7 @@ const Gameplay = () => {
   const [totalPlayTime, setTotalPlayTime] = useState("00min 00secs");
   const [showForfeit, setShowForfeit] = useState(false);
   const [winnerId, setWinnerId] = useState<number | null>(null);
+  const [fetchingResults, setFetchingResults] = useState(false);
   const { mutate: forfeit } = useForfeitMatch();
 
   const selectedAnswerRef = useRef<string | null>(null);
@@ -119,6 +146,14 @@ const Gameplay = () => {
 
   const currentQuestion = questions[currentQuestionIndex];
   const totalQuestions = questions.length;
+
+  // ── Connection state listener ─────────────────────────────────────────────
+  useEffect(() => {
+    const unsub = onConnectionChange((connected) => {
+      setSocketDisconnected(!connected);
+    });
+    return unsub;
+  }, []);
 
   // ── Socket events ──────────────────────────────────────────────────────────
 
@@ -239,6 +274,37 @@ const Gameplay = () => {
       socket.off("disconnect", handleDisconnect);
       detachMatchEvents();
     };
+  }, [gameState, matchId, totalQuestions]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Sync absolute source of truth upon hitting results ─────────
+  useEffect(() => {
+    if (gameState === "results" && matchId && !fetchingResults) {
+      setFetchingResults(true);
+      getMatch(matchId).then((res) => {
+        if (res.success && res.match) {
+          const m = res.match;
+          setWinnerId(m.winnerId != null ? Number(m.winnerId) : null);
+          
+          const currentUserId = (() => {
+            try {
+              const token = sessionStorage.getItem("auth_token");
+              if (!token) return null;
+              return Number(JSON.parse(atob(token.split(".")[1]))?.id);
+            } catch { return null; }
+          })();
+
+          // If available use explicit UI mapping from participants array to guarantee 100% match!
+          // We know my user ID, so mapping is crystal clear without guessing challengerId.
+          if (currentUserId && m.participants) {
+            const me = m.participants.find(p => p.userId === currentUserId);
+            const opp = m.participants.find(p => p.userId !== currentUserId);
+            
+            if (me) setPlayer1Score(me.score || 0);
+            if (opp) setPlayer2Score(opp.score || 0);
+          }
+        }
+      }).catch(err => console.error("Could not fetch final match stats:", err));
+    }
   }, [gameState, matchId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Timer ──────────────────────────────────────────────────────────────────
@@ -412,19 +478,14 @@ const Gameplay = () => {
     );
   }
 
-  // No questions yet — show loading with timeout fallback
+  // No questions yet — show loading with 10s auto-redirect
   if (!currentQuestion) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-muted-foreground">Loading match...</p>
-        <button
-          onClick={() => { sessionStorage.removeItem("currentMatch"); navigate("/lobby"); }}
-          className="text-xs text-muted-foreground underline mt-2"
-        >
-          Back to lobby
-        </button>
-      </div>
+      <LoadingFallback onBackToLobby={() => {
+        sessionStorage.removeItem("currentMatch");
+        sessionStorage.removeItem("matchEnded");
+        navigate("/lobby", { replace: true });
+      }} />
     );
   }
 
@@ -438,11 +499,11 @@ const Gameplay = () => {
         totalQuestions={totalQuestions}
       />
 
-      {/* Disconnect banner — non-blocking, game timer keeps running */}
+      {/* Disconnect banner — non-blocking, player can still tap answers (they'll be queued) */}
       {socketDisconnected && (
-        <div className="mx-4 sm:mx-6 mb-2 px-3 py-2 bg-warning/10 border border-warning/30 rounded-lg flex items-center gap-2 text-xs text-warning max-w-2xl mx-auto w-full">
-          <span className="w-1.5 h-1.5 rounded-full bg-warning shrink-0" />
-          Connection lost — your answers are still being recorded. Finish the quiz normally.
+        <div className="mx-4 sm:mx-6 mb-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-2 text-xs text-yellow-400 max-w-2xl mx-auto w-full animate-pulse">
+          <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin shrink-0" />
+          Reconnecting... Your answers are still being saved.
         </div>
       )}
       <main className="flex-1 px-4 sm:px-6 py-4 max-w-2xl mx-auto w-full">

@@ -7,7 +7,7 @@ import ChallengeStatusModal from "@/components/modals/ChallengeStatusModal";
 import ChallengeBoardTab from "@/components/lobby/ChallengeBoardTab";
 import { soundEngine } from "@/lib/soundEngine";
 import { useLobbyPlayers } from "@/hooks/useLobbyPlayers";
-import { useCreateChallenge, useAcceptChallenge, useDeclineChallenge } from "@/hooks/useChallenge";
+import { useCreateChallenge, useAcceptChallenge, useDeclineChallenge, useCancelChallenge, useActiveMatch } from "@/hooks/useChallenge";
 import type { LobbyPlayer } from "@/lib/api/lobby";
 import { getSocket } from "@/lib/socket/socket";
 import {
@@ -47,6 +47,20 @@ const Lobby = () => {
   const { mutate: createChallenge, isPending: isCreatingChallenge } = useCreateChallenge();
   const { mutate: acceptCounterChallenge } = useAcceptChallenge();
   const { mutate: declineCounterChallenge } = useDeclineChallenge();
+  const { mutate: cancelChallenge } = useCancelChallenge();
+
+  const { data: activeMatchData } = useActiveMatch();
+  // Enable polling for active match only when in waiting/confirm state
+  const isPollingForMatch = modalState === "waiting" || modalState === "confirm";
+
+  // Clean stale match data on Lobby mount — prevents zombie redirects
+  useEffect(() => {
+    const ended = sessionStorage.getItem("matchEnded");
+    if (ended === "true") {
+      sessionStorage.removeItem("currentMatch");
+      sessionStorage.removeItem("matchEnded");
+    }
+  }, []);
 
   // Listen for challenge lifecycle socket events
   // Use refs for callbacks so we don't need to re-register on every render
@@ -123,36 +137,35 @@ const Lobby = () => {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Poll for match start when waiting — fallback if socket event is missed
+  // Handle auto-start from poll if socket message was missed
   useEffect(() => {
-    if (modalState !== "waiting" || !challengeId) return;
+    if (!isPollingForMatch || !activeMatchData?.match) return;
 
-    const getMyId = () => {
-      try {
-        const token = sessionStorage.getItem("auth_token");
-        if (!token) return null;
-        return Number(JSON.parse(atob(token.split(".")[1]))?.id);
-      } catch { return null; }
-    };
+    const match = activeMatchData.match;
 
-    const poll = setInterval(async () => {
-      try {
-        const { getChallenges } = await import("@/lib/api/lobby");
-        // Poll for active challenges — if our challenge moved to active, the match started
-        const res = await getChallenges({ status: "active" as import("@/lib/api/lobby").ChallengeStatus });
-        const active = res.challenges.find((c) => c.id === challengeId);
-        if (!active) return;
+    // Safety: don't redirect if match has no questions (stale/incomplete data)
+    if (!match.questions || match.questions.length === 0) return;
+    if (!match.matchId) return;
 
-        // Match started but we missed the socket event
-        // The challenge object doesn't have matchId, so we need to ask backend
-        // For now show a clear message so user knows what happened
-        clearInterval(poll);
-        setChallengeError("Your opponent accepted! Tap 'Refresh' to check or wait for the match to load.");
-      } catch { /* ignore poll errors */ }
-    }, 2500);
+    soundEngine.stopBellLoop();
+    soundEngine.play("start_challenge");
+    setModalState("accepted");
 
-    return () => clearInterval(poll);
-  }, [modalState, challengeId]);
+    sessionStorage.removeItem("matchEnded");
+    sessionStorage.setItem("currentMatch", JSON.stringify({
+      matchId: match.matchId,
+      player1: match.matchId ? { name: userProfile.nickname, avatar: userProfile.avatar } : { name: "You", avatar: "" },
+      player2: match.challenger 
+        ? { name: match.challenger.nickname, avatar: match.challenger.avatarUrl } 
+        : { name: "Opponent", avatar: "" },
+      questions: match.questions,
+      challengerId: match.challengerId,
+    }));
+
+    joinMatch(match.matchId);
+    setTimeout(() => navigate("/game"), 1500);
+  }, [activeMatchData, isPollingForMatch, navigate, userProfile]);
+
   const players = (data?.players ?? []).filter((p) =>
     searchQuery === "" || p.nickname.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -198,6 +211,13 @@ const Lobby = () => {
         },
       }
     );
+  };
+
+  const handleCancelChallenge = () => {
+    if (challengeId) {
+      cancelChallenge(challengeId);
+    }
+    closeModal();
   };
 
   const closeModal = () => {
@@ -295,6 +315,11 @@ const Lobby = () => {
         ) : (
           <ChallengeBoardTab
             onAccept={(challengeId, matchId, challenger, questions) => {
+              // Safety check: don't navigate if no questions
+              if (!questions || questions.length === 0) {
+                console.warn("[Lobby] Challenge accepted but no questions received");
+                return;
+              }
               soundEngine.play("start_challenge");
               const stored = sessionStorage.getItem("userProfile");
               const me = stored ? JSON.parse(stored) : { nickname: "You", avatar: "" };
@@ -335,10 +360,11 @@ const Lobby = () => {
           onClose={closeModal}
           onConfirm={isCreatingChallenge ? undefined : handleConfirmChallenge}
           error={challengeError}
-          onCancel={closeModal}
+          onCancel={handleCancelChallenge}
           onResend={() => setModalState("waiting")}
           onEditTerms={() => setModalState("challenge")}
           onBackToLobby={closeModal}
+          onTimeout={() => setModalState("timeout")}
           onAcceptCounter={() => {
             if (!counterOffer) return;
             acceptCounterChallenge(counterOffer.challengeId, {

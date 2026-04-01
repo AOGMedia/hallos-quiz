@@ -105,6 +105,7 @@ export const offIncomingChallenge = (): void => {
 export interface ChallengeAcceptedPayload {
   challengeId: string;
   matchId: string;
+  challengerId?: number;
   startTime: string;
   questions: Array<{
     id: string;
@@ -159,4 +160,11 @@ export const onChallengeCounter = (cb: (data: ChallengeCounterPayload) => void):
 };
 export const offChallengeCounter = (): void => {
   getSocket().off("challenge_counter");
+};
+
+export const onMatchStateRestored = (cb: (data: ChallengeAcceptedPayload) => void): void => {
+  getSocket().on("match_state_restored", cb);
+};
+export const offMatchStateRestored = (): void => {
+  getSocket().off("match_state_restored");
 };

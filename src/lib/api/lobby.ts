@@ -64,6 +64,7 @@ export interface MatchQuestion {
 export interface AcceptChallengeResponse {
   success: boolean;
   matchId: string;
+  challengerId?: number;
   startTime: string;
   questions: MatchQuestion[];
   challenger?: {
@@ -103,6 +104,8 @@ export interface Match {
   id: string;
   matchType: string;
   status: string;
+  winnerId?: number | null;
+  challengerId?: number;
   participants: MatchParticipant[];
   questions: MatchQuestion[];
   startedAt: string;
@@ -226,6 +229,20 @@ export const getMatch = async (id: string): Promise<GetMatchResponse> => {
 export const forfeitMatch = async (id: string): Promise<ForfeitMatchResponse> => {
   const res = await apiClient.post<ForfeitMatchResponse>(
     `/api/quiz/lobby/match/${id}/forfeit`
+  );
+  return res.data;
+};
+
+export const cancelChallenge = async (id: string): Promise<DeclineChallengeResponse> => {
+  const res = await apiClient.post<DeclineChallengeResponse>(
+    `/api/quiz/lobby/challenge/${id}/cancel`
+  );
+  return res.data;
+};
+
+export const getActiveMatch = async (): Promise<{ success: boolean; match: AcceptChallengeResponse | null }> => {
+  const res = await apiClient.get<{ success: boolean; match: AcceptChallengeResponse | null }>(
+    "/api/quiz/lobby/active-match"
   );
   return res.data;
 };

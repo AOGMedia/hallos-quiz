@@ -11,6 +11,8 @@ import {
   offIncomingChallenge,
   onPlayersUpdated,
   offPlayersUpdated,
+  onMatchStateRestored,
+  offMatchStateRestored,
   type IncomingChallengePayload,
 } from "@/lib/socket/events";
 import { joinMatch } from "@/lib/socket/emitters";
@@ -142,11 +144,33 @@ const AppLayout = () => {
   useEffect(() => {
     onIncomingChallenge((payload) => setIncomingChallenge(payload));
     onPlayersUpdated((payload) => setOnlineCount(payload.onlineCount));
+    
+    // Global resilience: if server says we are in a match, go there!
+    onMatchStateRestored((match) => {
+      if (location.pathname === "/game") return; // already there
+      if (location.pathname === "/lobby") return; // don't hijack user from lobby
+      if (sessionStorage.getItem("matchEnded") === "true") return; // match already ended locally
+      
+      console.log("[AppLayout] Match state restored, auto-navigating to /game");
+      sessionStorage.removeItem("matchEnded");
+      sessionStorage.setItem("currentMatch", JSON.stringify({
+        matchId: match.matchId,
+        player1: { name: userProfile.nickname, avatar: userProfile.avatar },
+        player2: match.opponent 
+          ? { name: match.opponent.nickname, avatar: match.opponent.avatarUrl } 
+          : { name: "Opponent", avatar: "" },
+        questions: match.questions,
+        challengerId: match.challengerId,
+      }));
+      navigate("/game");
+    });
+
     return () => {
       offIncomingChallenge();
       offPlayersUpdated();
+      offMatchStateRestored();
     };
-  }, []);
+  }, [location.pathname, navigate, userProfile]);
   const activeNav: NavItem =
     PATH_TO_NAV[location.pathname] ?? "lobby";
 
