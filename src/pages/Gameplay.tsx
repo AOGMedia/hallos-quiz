@@ -9,12 +9,14 @@ import ResultsHeader from "@/components/results/ResultsHeader";
 import ResultsScoreCard from "@/components/results/ResultsScoreCard";
 import ResultsBreakdown from "@/components/results/ResultsBreakdown";
 import ResultsActions from "@/components/results/ResultsActions";
+import ShareResultModal from "@/components/results/ShareResultModal";
 import ForfeitModal from "@/components/modals/ForfeitModal";
 import { avatars } from "@/data/gameData";
 import { useForfeitMatch } from "@/hooks/useChallenge";
 import { joinMatch, submitAnswer } from "@/lib/socket/emitters";
 import { attachMatchEvents, detachMatchEvents } from "@/lib/socket/events";
-import { getSocket } from "@/lib/socket/socket";
+import { getSocket, onConnectionChange } from "@/lib/socket/socket";
+import { getMatch } from "@/lib/api/lobby";
 import type { MatchQuestion } from "@/lib/api/lobby";
 import type { GameResult } from "@/data/quizData";
 
@@ -37,9 +39,34 @@ function buildQuestion(q: MatchQuestion, timeLimit = 10): ActiveQuestion {
     question: q.questionText,
     options: Object.entries(q.options).map(([value, label]) => ({ label, value })),
     correctAnswer: null,
-    timeLimit,
+    timeLimit: Math.round(timeLimit),
   };
 }
+
+const LoadingFallback = ({ onBackToLobby }: { onBackToLobby: () => void }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onBackToLobby();
+    }, 10000); // 10 seconds timeout
+    return () => clearTimeout(timer);
+  }, [onBackToLobby]);
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <p className="text-sm text-muted-foreground">Loading match...</p>
+      <p className="text-xs text-muted-foreground/60 italic px-8 text-center">
+        Taking a while? We'll return you to the lobby if the match doesn't start in 10s.
+      </p>
+      <button
+        onClick={onBackToLobby}
+        className="text-xs text-muted-foreground underline mt-2"
+      >
+        Back to lobby
+      </button>
+    </div>
+  );
+};
 
 const Gameplay = () => {
   const navigate = useNavigate();
@@ -57,6 +84,7 @@ const Gameplay = () => {
   const [questions, setQuestions] = useState<ActiveQuestion[]>(
     rawQuestions.map((q) => buildQuestion(q))
   );
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   // Join match room immediately on mount so we don't miss early socket events
   useEffect(() => {
@@ -120,6 +148,14 @@ const Gameplay = () => {
   const currentQuestion = questions[currentQuestionIndex];
   const totalQuestions = questions.length;
 
+  // ── Connection state listener ─────────────────────────────────────────────
+  useEffect(() => {
+    const unsub = onConnectionChange((connected) => {
+      setSocketDisconnected(!connected);
+    });
+    return unsub;
+  }, []);
+
   // ── Socket events ──────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -150,8 +186,8 @@ const Gameplay = () => {
 
     attachMatchEvents({
       onMatchStarted: (data) => {
-        setTimeLeft(data.timeLimit ?? 10);
-        timeLeftRef.current = data.timeLimit ?? 10;
+        setTimeLeft(Math.round(data.timeLimit ?? 10));
+        timeLeftRef.current = Math.round(data.timeLimit ?? 10);
       },
       onAnswerRecorded: (data) => {
         const isCorrect = data.correct ?? data.isCorrect ?? false;
@@ -239,6 +275,59 @@ const Gameplay = () => {
       socket.off("disconnect", handleDisconnect);
       detachMatchEvents();
     };
+  }, [gameState, matchId, totalQuestions]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Sync absolute source of truth upon hitting results ─────────
+  useEffect(() => {
+    if (gameState !== "results" || !matchId) return;
+
+    let attempts = 0;
+    const MAX_ATTEMPTS = 8;
+
+    const tryFetch = () => {
+      attempts++;
+      getMatch(matchId).then((res) => {
+        if (res.success && res.match) {
+          const m = res.match;
+
+          const currentUserId = (() => {
+            try {
+              const token = sessionStorage.getItem("auth_token");
+              if (!token) return null;
+              return Number(JSON.parse(atob(token.split(".")[1]))?.id);
+            } catch { return null; }
+          })();
+
+          if (currentUserId && m.participants) {
+            const me = m.participants.find((p: { userId: number }) => p.userId === currentUserId);
+            const opp = m.participants.find((p: { userId: number }) => p.userId !== currentUserId);
+            if (me) setPlayer1Score(me.score || 0);
+            if (opp) setPlayer2Score(opp.score || 0);
+          }
+
+          if (m.winnerId != null) {
+            setWinnerId(Number(m.winnerId));
+            return; // done
+          }
+        }
+        // winnerId still null — retry if attempts remain
+        if (attempts < MAX_ATTEMPTS) {
+          setTimeout(tryFetch, 1500);
+        } else {
+          // Backend never set winnerId — derive winner from scores we have
+          // Use -1 as sentinel to mean "resolved by score comparison, not server"
+          setWinnerId(-1);
+        }
+      }).catch(() => {
+        if (attempts < MAX_ATTEMPTS) {
+          setTimeout(tryFetch, 1500);
+        } else {
+          setWinnerId(-1);
+        }
+      });
+    };
+
+    tryFetch();
   }, [gameState, matchId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Timer ──────────────────────────────────────────────────────────────────
@@ -307,7 +396,7 @@ const Gameplay = () => {
         matchId,
         questionId: currentQuestion.id,
         answer: value,
-        timeInSeconds: currentQuestion.timeLimit - timeLeftRef.current,
+        timeInSeconds: Math.floor(currentQuestion.timeLimit - timeLeftRef.current),
       });
     }
 
@@ -369,9 +458,14 @@ const Gameplay = () => {
     } catch { return null; }
   })();
 
-  // winnerId === 0 means draw/no winner (e.g. forfeit with no clear winner)
-  // winnerId === null means the match hasn't officially concluded (waiting for opponent)
-  const isVictory = winnerId != null && winnerId !== 0 && currentUserId !== null
+  // winnerId === null: still waiting for server result
+  // winnerId === -1: server never resolved, fall back to score comparison
+  // winnerId === 0: draw/forfeit with no clear winner
+  const isVictory: boolean | null = winnerId === null
+    ? null
+    : winnerId === -1 || winnerId === 0
+    ? player1Score > player2Score
+    : currentUserId !== null
     ? winnerId === currentUserId
     : null;
 
@@ -399,7 +493,7 @@ const Gameplay = () => {
           {showResultsBreakdown && <ResultsBreakdown results={gameResults} />}
           <div className="w-full">
             <ResultsActions
-              onShareResults={() => {}}
+              onShareResults={() => setIsShareModalOpen(true)}
               onReturnToLobby={() => {
                 sessionStorage.removeItem("currentMatch");
                 sessionStorage.removeItem("matchEnded");
@@ -407,24 +501,25 @@ const Gameplay = () => {
               }}
             />
           </div>
+          <ShareResultModal 
+            isOpen={isShareModalOpen} 
+            onOpenChange={setIsShareModalOpen} 
+            playerScore={player1Score} 
+            isVictory={isVictory} 
+          />
         </main>
       </div>
     );
   }
 
-  // No questions yet — show loading with timeout fallback
+  // No questions yet — show loading with 10s auto-redirect
   if (!currentQuestion) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-muted-foreground">Loading match...</p>
-        <button
-          onClick={() => { sessionStorage.removeItem("currentMatch"); navigate("/lobby"); }}
-          className="text-xs text-muted-foreground underline mt-2"
-        >
-          Back to lobby
-        </button>
-      </div>
+      <LoadingFallback onBackToLobby={() => {
+        sessionStorage.removeItem("currentMatch");
+        sessionStorage.removeItem("matchEnded");
+        navigate("/lobby", { replace: true });
+      }} />
     );
   }
 
@@ -438,11 +533,11 @@ const Gameplay = () => {
         totalQuestions={totalQuestions}
       />
 
-      {/* Disconnect banner — non-blocking, game timer keeps running */}
+      {/* Disconnect banner — non-blocking, player can still tap answers (they'll be queued) */}
       {socketDisconnected && (
-        <div className="mx-4 sm:mx-6 mb-2 px-3 py-2 bg-warning/10 border border-warning/30 rounded-lg flex items-center gap-2 text-xs text-warning max-w-2xl mx-auto w-full">
-          <span className="w-1.5 h-1.5 rounded-full bg-warning shrink-0" />
-          Connection lost — your answers are still being recorded. Finish the quiz normally.
+        <div className="mx-4 sm:mx-6 mb-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-2 text-xs text-yellow-400 max-w-2xl mx-auto w-full animate-pulse">
+          <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin shrink-0" />
+          Reconnecting... Your answers are still being saved.
         </div>
       )}
       <main className="flex-1 px-4 sm:px-6 py-4 max-w-2xl mx-auto w-full">

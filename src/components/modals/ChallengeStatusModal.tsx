@@ -33,6 +33,7 @@ interface ChallengeStatusModalProps {
   onBackToLobby?: () => void;
   onAcceptCounter?: () => void;
   onDeclineCounter?: () => void;
+  onTimeout?: () => void;
 }
 
 const ChallengeStatusModal = ({
@@ -51,15 +52,20 @@ const ChallengeStatusModal = ({
   onBackToLobby,
   onAcceptCounter,
   onDeclineCounter,
+  onTimeout,
 }: ChallengeStatusModalProps) => {
   const [countdown, setCountdown] = useState(59);
 
   useEffect(() => {
     if (type !== "waiting") return;
-    if (countdown <= 0) return;
+    if (countdown <= 0) {
+      // Auto-transition: countdown expired, trigger timeout UI
+      onTimeout?.();
+      return;
+    }
     const timer = setInterval(() => setCountdown((p) => p - 1), 1000);
     return () => clearInterval(timer);
-  }, [type, countdown]);
+  }, [type, countdown, onTimeout]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6">
