@@ -22,7 +22,7 @@ const WalletBalanceCard = ({ balance, onTabChange }: WalletBalanceCardProps) => 
       <span className="text-4xl sm:text-6xl font-bold text-foreground">
         {balance.toLocaleString()}
       </span>
-      <span className="text-lg sm:text-2xl text-muted-foreground mb-1">CP</span>
+      <span className="text-lg sm:text-2xl text-muted-foreground mb-1">MP</span>
     </div>
 
     <div className="flex flex-wrap gap-3">
@@ -30,7 +30,7 @@ const WalletBalanceCard = ({ balance, onTabChange }: WalletBalanceCardProps) => 
         onClick={() => onTabChange("purchase")}
         className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm font-medium transition-colors"
       >
-        <ShoppingCart className="w-4 h-4" /> Buy CP
+        <ShoppingCart className="w-4 h-4" /> Buy MP
       </button>
       <button
         onClick={() => onTabChange("withdraw")}

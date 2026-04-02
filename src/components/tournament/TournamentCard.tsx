@@ -37,7 +37,7 @@ const TournamentCard = ({ tournament, onSelect }: TournamentCardProps) => {
       <div className="flex items-center gap-3 text-[10px] sm:text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
           <Zap className="w-3 h-3 text-warning" />
-          {tournament.entryFee} CP
+          {tournament.entryFee} MP
         </span>
         <span className="flex items-center gap-1">
           <Zap className="w-3 h-3 text-yellow-400" />

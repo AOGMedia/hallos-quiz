@@ -50,7 +50,7 @@ const WalletPurchaseTab = () => {
       {/* Conversion note */}
       <div className="px-3 py-2 bg-card border border-border rounded-lg text-xs text-muted-foreground">
         <span className="text-foreground font-medium">Rate: </span>
-        1 CP = ₦{CP_TO_NGN} &nbsp;·&nbsp; e.g. 100 CP = ₦{(100 * CP_TO_NGN).toLocaleString()}
+        1 MP = ₦{CP_TO_NGN} &nbsp;·&nbsp; e.g. 100 MP = ₦{(100 * CP_TO_NGN).toLocaleString()}
       </div>
 
       {/* Feedback */}
@@ -82,7 +82,7 @@ const WalletPurchaseTab = () => {
               }`}
             >
               <Zap className="w-3 h-3 text-warning" />
-              {pkg.cp.toLocaleString()} CP
+              {pkg.cp.toLocaleString()} MP
               {pkg.bonus && (
                 <span className="ml-1 text-[10px] text-accent">{pkg.bonus}</span>
               )}
@@ -94,7 +94,7 @@ const WalletPurchaseTab = () => {
       {/* Custom CP input */}
       <div>
         <label className="block text-xs text-muted-foreground mb-2">
-          Or enter custom amount (min {MIN_CP} CP)
+          Or enter custom amount (min {MIN_CP} MP)
         </label>
         <div className="relative">
           <Zap className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-warning pointer-events-none" />
@@ -114,7 +114,7 @@ const WalletPurchaseTab = () => {
         <div className="flex items-center justify-between px-3 py-2.5 bg-card border border-border rounded-lg text-xs sm:text-sm">
           <span className="text-muted-foreground">You pay</span>
           <span className="font-semibold text-foreground">
-            ₦{ngnCost.toLocaleString()} → ~{effectiveCp.toLocaleString()} CP
+            ₦{ngnCost.toLocaleString()} → ~{effectiveCp.toLocaleString()} MP
           </span>
         </div>
       )}
@@ -128,8 +128,8 @@ const WalletPurchaseTab = () => {
         {isPending
           ? "Processing..."
           : isValid
-          ? `Buy ${effectiveCp.toLocaleString()} CP for ₦${ngnCost.toLocaleString()}`
-          : `Enter at least ${MIN_CP} CP`}
+          ? `Buy ${effectiveCp.toLocaleString()} MP for ₦${ngnCost.toLocaleString()}`
+          : `Enter at least ${MIN_CP} MP`}
       </Button>
     </div>
   );

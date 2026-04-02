@@ -32,9 +32,9 @@ const ChutaWallet = () => {
     <div className="flex-1 overflow-y-auto p-3 sm:p-6">
       {/* Header */}
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-xl sm:text-3xl font-bold text-primary mb-1">Chuta Wallet</h1>
+        <h1 className="text-xl sm:text-3xl font-bold text-primary mb-1">Morgan Wallet</h1>
         <p className="text-xs sm:text-base text-muted-foreground">
-          Manage your Chuta Points and track earnings
+          Manage your Morgan Points and track earnings
         </p>
       </div>
 

@@ -55,11 +55,8 @@ const Lobby = () => {
 
   // Clean stale match data on Lobby mount — prevents zombie redirects
   useEffect(() => {
-    const ended = sessionStorage.getItem("matchEnded");
-    if (ended === "true") {
-      sessionStorage.removeItem("currentMatch");
-      sessionStorage.removeItem("matchEnded");
-    }
+    sessionStorage.removeItem("currentMatch");
+    sessionStorage.removeItem("matchEnded");
   }, []);
 
   // Listen for challenge lifecycle socket events

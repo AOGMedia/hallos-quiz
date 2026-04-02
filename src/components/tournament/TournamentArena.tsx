@@ -86,12 +86,12 @@ const TournamentArena = ({ onHistoryClick, onHostClick, onSelectTournament }: To
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">PRIZE POOL</p>
                   <p className="text-sm sm:text-lg font-bold text-yellow-400 flex items-center gap-1">
                     <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
-                    {featuredTournament.prizePool.toLocaleString()} CP
+                    {featuredTournament.prizePool.toLocaleString()} MP
                   </p>
                 </div>
                 <div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">ENTRY FEE</p>
-                  <p className="text-sm sm:text-lg font-bold text-foreground">{featuredTournament.entry} CP</p>
+                  <p className="text-sm sm:text-lg font-bold text-foreground">{featuredTournament.entry} MP</p>
                 </div>
                 <div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">FORMAT</p>
@@ -199,11 +199,11 @@ const TournamentArena = ({ onHistoryClick, onHostClick, onSelectTournament }: To
                         {t.format}
                       </span>
                     </td>
-                    <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">{t.entry} CP</td>
+                    <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">{t.entry} MP</td>
                     <td className="p-2 sm:p-4">
                       <span className="text-yellow-400 flex items-center gap-1 text-xs sm:text-base whitespace-nowrap">
                         <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
-                        {t.prizePool.toLocaleString()} CP
+                        {t.prizePool.toLocaleString()} MP
                       </span>
                     </td>
                     <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">

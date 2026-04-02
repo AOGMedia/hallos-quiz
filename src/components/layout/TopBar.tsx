@@ -36,10 +36,10 @@ const TopBar = ({ onlineCount, zetaPoints, wins, totalGames, userAvatar, searchQ
           </span>
         </div>
 
-        {/* Chuta points */}
+        {/* Morgan Points */}
         <div className="flex items-center gap-1 md:gap-2 shrink-0">
           <Zap className="w-4 h-4 text-warning" />
-          <span className="text-xs md:text-sm text-foreground hidden sm:inline">Chuta points</span>
+          <span className="text-xs md:text-sm text-foreground hidden sm:inline">Morgan Points</span>
           <span className="text-xs md:text-sm font-semibold text-foreground">{zetaPoints.toLocaleString()}</span>
         </div>
 

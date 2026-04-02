@@ -86,7 +86,7 @@ const ChallengeCard = ({ challenge, onAccept, onDecline, isAccepting, isDeclinin
           className="flex-1 btn-accent flex items-center justify-center gap-1.5 text-xs disabled:opacity-50"
         >
           {isAccepting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Swords className="w-3.5 h-3.5" />}
-          {isAccepting ? "Accepting..." : !canAfford ? `Need ${challenge.wagerAmount} CP` : "Accept"}
+          {isAccepting ? "Accepting..." : !canAfford ? `Need ${challenge.wagerAmount} MP` : "Accept"}
         </button>
       </div>
     </div>

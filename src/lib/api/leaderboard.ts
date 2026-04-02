@@ -9,9 +9,18 @@ export interface GlobalRankingEntry {
   username?: string;
   avatarUrl?: string | null;
   totalWinnings: number;
-  totalMatches: number;
-  winRate?: number;
-  accuracy?: number;
+  lobbyWinnings: number;
+  tournamentPrizes: number;
+  lobbyStats: {
+    matches: number;
+    wins: number;
+    winRate: number;
+  };
+  tournamentStats: {
+    entered: number;
+    won: number;
+    top3: number;
+  };
 }
 
 export interface GlobalLeaderboardResponse {
@@ -27,9 +36,10 @@ export interface LobbyRankingEntry {
   nickname: string;
   username?: string;
   avatarUrl?: string | null;
-  lobbyWinnings: number;
-  lobbyMatches: number;
-  lobbyWinRate?: number;
+  totalWinnings: number;
+  matches: number;
+  wins: number;
+  winRate: number;
 }
 
 export interface LobbyLeaderboardResponse {
@@ -43,7 +53,8 @@ export interface TournamentRankingEntry {
   nickname: string;
   username?: string;
   avatarUrl?: string | null;
-  tournamentWinnings: number;
+  totalPrizeMoney: number;
+  tournamentsEntered: number;
   tournamentsWon: number;
   top3Finishes: number;
 }
