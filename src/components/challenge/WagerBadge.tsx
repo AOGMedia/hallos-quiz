@@ -13,7 +13,7 @@ const WagerBadge = ({ amount, label = "Wager", size = "md" }: WagerBadgeProps) =
       <span className={`text-muted-foreground ${size === "sm" ? "text-xs" : "text-xs sm:text-sm"}`}>{label}</span>
     </div>
     <span className={`font-bold text-foreground ${size === "sm" ? "text-sm" : "text-sm sm:text-base"}`}>
-      {amount.toLocaleString()} CP
+      {amount.toLocaleString()} MP
     </span>
   </div>
 );

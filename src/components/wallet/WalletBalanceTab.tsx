@@ -20,7 +20,7 @@ const WalletBalanceTab = ({ totalEarned, totalSpent, recentTransactions }: Walle
           <span className="text-xs sm:text-sm text-muted-foreground">Total Earned</span>
         </div>
         <p className="text-xl sm:text-3xl font-bold text-green-400">+{totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-        <p className="text-xs text-muted-foreground mt-1">CP earned from wins</p>
+        <p className="text-xs text-muted-foreground mt-1">MP earned from wins</p>
       </div>
 
       <div className="bg-card border border-border rounded-xl p-4 sm:p-6">
@@ -31,7 +31,7 @@ const WalletBalanceTab = ({ totalEarned, totalSpent, recentTransactions }: Walle
           <span className="text-xs sm:text-sm text-muted-foreground">Total Spent</span>
         </div>
         <p className="text-xl sm:text-3xl font-bold text-red-400">-{totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-        <p className="text-xs text-muted-foreground mt-1">CP spent on entries</p>
+        <p className="text-xs text-muted-foreground mt-1">MP spent on entries</p>
       </div>
     </div>
 

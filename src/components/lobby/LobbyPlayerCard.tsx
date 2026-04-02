@@ -50,7 +50,7 @@ const LobbyPlayerCard = ({
       <div className="space-y-2 mb-4 flex-1">
         <div className="flex items-center gap-2 text-sm">
           <Zap className="w-4 h-4 text-warning flex-shrink-0" />
-          <span className="text-muted-foreground">{points.toLocaleString()} Chuta Points</span>
+          <span className="text-muted-foreground">{points.toLocaleString()} Morgan Points</span>
         </div>
         <div className="flex items-center gap-2 text-sm">
           <BarChart2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />

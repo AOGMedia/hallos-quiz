@@ -6,14 +6,14 @@ import type { Challenge } from "@/lib/api/lobby";
 import { useQueryClient } from "@tanstack/react-query";
 import { useChutaWalletStore } from "@/store/chutaWalletStore";
 
-const WAGER_FILTERS = ["All", "≤100 CP", "101–300 CP", "300+ CP"] as const;
+const WAGER_FILTERS = ["All", "≤100 MP", "101–300 MP", "300+ MP"] as const;
 type WagerFilter = (typeof WAGER_FILTERS)[number];
 
 function filterByWager(challenges: Challenge[], filter: WagerFilter): Challenge[] {
   switch (filter) {
-    case "≤100 CP": return challenges.filter((c) => c.wagerAmount <= 100);
-    case "101–300 CP": return challenges.filter((c) => c.wagerAmount > 100 && c.wagerAmount <= 300);
-    case "300+ CP": return challenges.filter((c) => c.wagerAmount > 300);
+    case "≤100 MP": return challenges.filter((c) => c.wagerAmount <= 100);
+    case "101–300 MP": return challenges.filter((c) => c.wagerAmount > 100 && c.wagerAmount <= 300);
+    case "300+ MP": return challenges.filter((c) => c.wagerAmount > 300);
     default: return challenges;
   }
 }

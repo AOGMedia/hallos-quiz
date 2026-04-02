@@ -71,8 +71,8 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
             {/* Key stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-4">
               {[
-                { label: "Entry Fee",   value: `${t.entryFee} CP`,              icon: Zap,      color: "text-warning" },
-                { label: "Prize Pool",  value: `${t.prizePool.toLocaleString()} CP`, icon: Trophy, color: "text-yellow-400" },
+                { label: "Entry Fee",   value: `${t.entryFee} MP`,              icon: Zap,      color: "text-warning" },
+                { label: "Prize Pool",  value: `${t.prizePool.toLocaleString()} MP`, icon: Trophy, color: "text-yellow-400" },
                 { label: "Players",     value: `${data.participantCount}/${t.maxParticipants}`, icon: Users, color: "text-primary" },
                 { label: "Rounds",      value: `${t.totalRounds} rounds`,        icon: BarChart2, color: "text-accent" },
               ].map(({ label, value, icon: Icon, color }) => (
@@ -100,7 +100,7 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
                   <p className="text-xs sm:text-sm font-bold text-foreground">{pct}%</p>
                   <p className="text-[10px] text-muted-foreground">{place}</p>
                   <p className="text-[10px] text-yellow-400">
-                    {Math.round(t.prizePool * pct / 100).toLocaleString()} CP
+                    {Math.round(t.prizePool * pct / 100).toLocaleString()} MP
                   </p>
                 </div>
               ))}
@@ -133,8 +133,8 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
             <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl text-xs sm:text-sm">
               <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
               {registerMutation.isSuccess
-                ? `Registered! ${t.entryFee} CP deducted.`
-                : `Unregistered. ${t.entryFee} CP refunded.`}
+                ? `Registered! ${t.entryFee} MP deducted.`
+                : `Unregistered. ${t.entryFee} MP refunded.`}
             </div>
           )}
           {(registerMutation.isError || unregisterMutation.isError) && (
@@ -162,7 +162,7 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
                 disabled={registerMutation.isPending || data.participantCount >= t.maxParticipants}
                 className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground text-sm disabled:opacity-40"
               >
-                {registerMutation.isPending ? "Registering…" : `Register · ${t.entryFee} CP`}
+                {registerMutation.isPending ? "Registering…" : `Register · ${t.entryFee} MP`}
               </Button>
             )}
 

@@ -78,7 +78,7 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
               <h3 className="text-base sm:text-xl font-semibold">{player.name}</h3>
               <div className="flex items-center gap-1 sm:gap-2 text-muted-foreground text-xs sm:text-sm">
                 <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-warning" />
-                <span>{player.points.toLocaleString()} Chuta Points</span>
+                <span>{player.points.toLocaleString()} Morgan Points</span>
               </div>
             </div>
           </div>
@@ -138,7 +138,7 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
             <div className="flex items-center gap-2 mb-2">
               <Zap className="w-4 h-4 text-warning" />
               <h4 className="font-semibold text-sm sm:text-base">Wager Amount</h4>
-              <span className="text-[10px] sm:text-xs text-muted-foreground">(optional · 0 CP = free match)</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">(optional · 0 MP = free match)</span>
             </div>
 
             {/* Preset chips */}
@@ -153,7 +153,7 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
                       : "bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
-                  {preset} CP
+                  {preset} MP
                 </button>
               ))}
             </div>
@@ -165,7 +165,7 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
                 type="number"
                 value={customWager}
                 onChange={(e) => setCustomWager(e.target.value)}
-                placeholder="Or enter custom amount (CP)"
+                placeholder="Or enter custom amount (MP)"
                 min={0}
                 className="input-dark w-full pl-9 text-sm"
               />
@@ -176,7 +176,7 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
             <div className="flex items-center gap-2 p-2.5 bg-warning/10 border border-warning/20 rounded-lg text-xs text-warning">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
               <span>
-                <span className="font-semibold">{effectiveWager.toLocaleString()} CP</span> held in escrow — winner takes all
+                <span className="font-semibold">{effectiveWager.toLocaleString()} MP</span> held in escrow — winner takes all
               </span>
             </div>
           )}
@@ -199,7 +199,7 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
             ? "Select a category"
             : effectiveWager === 0
             ? "Challenge · Free Match"
-            : `Challenge · ${effectiveWager.toLocaleString()} CP`}
+            : `Challenge · ${effectiveWager.toLocaleString()} MP`}
         </button>
       </div>
     </div>

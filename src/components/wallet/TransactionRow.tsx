@@ -35,7 +35,7 @@ const TransactionRow = ({ tx, isLast }: TransactionRowProps) => {
       </div>
       <div className="text-right ml-3 flex-shrink-0">
         <span className={`text-sm sm:text-base font-semibold ${isCredit ? "text-green-400" : "text-red-400"}`}>
-          {isCredit ? "+" : ""}{tx.amount.toLocaleString()} CP
+          {isCredit ? "+" : ""}{tx.amount.toLocaleString()} MP
         </span>
         <p className="text-[10px] text-muted-foreground">bal: {tx.balanceAfter.toLocaleString()}</p>
       </div>

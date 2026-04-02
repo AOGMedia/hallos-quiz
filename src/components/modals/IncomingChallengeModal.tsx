@@ -105,7 +105,7 @@ const IncomingChallengeModal = ({
         {/* Challenger stats */}
         <div className="flex items-center gap-1.5 justify-center mb-4 text-xs text-muted-foreground">
           <Zap className="w-3.5 h-3.5 text-warning" />
-          <span>{challenger.points.toLocaleString()} Chuta Points</span>
+          <span>{challenger.points.toLocaleString()} Morgan Points</span>
         </div>
 
         {/* Categories + wager */}
@@ -129,7 +129,7 @@ const IncomingChallengeModal = ({
                       : "bg-card border-border text-muted-foreground hover:bg-muted"
                   }`}
                 >
-                  {p} CP
+                  {p} MP
                 </button>
               ))}
             </div>
@@ -139,7 +139,7 @@ const IncomingChallengeModal = ({
                 type="number"
                 value={customCounter}
                 onChange={(e) => setCustomCounter(e.target.value)}
-                placeholder="Custom CP amount"
+                placeholder="Custom MP amount"
                 className="input-dark w-full pl-8 text-xs py-2"
               />
             </div>

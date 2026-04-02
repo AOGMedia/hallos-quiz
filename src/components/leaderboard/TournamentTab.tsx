@@ -12,7 +12,7 @@ const TournamentTab = ({ rankings }: TournamentTabProps) => (
     <div className="grid grid-cols-[40px_1fr_90px_70px_70px] gap-2 px-3 sm:px-4 py-2.5 border-b border-border text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">
       <span>#</span>
       <span>Player</span>
-      <span className="text-right">Prize CP</span>
+      <span className="text-right">Prize MP</span>
       <span className="text-right hidden sm:block">Won</span>
       <span className="text-right hidden sm:block">Top 3</span>
     </div>

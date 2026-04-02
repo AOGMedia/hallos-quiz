@@ -45,7 +45,7 @@ const ProfileStatsCard = ({ profile }: ProfileStatsCardProps) => {
           <StatItem label="Entered" value={tournamentStats.tournamentsEntered} />
           <StatItem label="Won" value={tournamentStats.tournamentsWon} />
           <StatItem label="Top 3" value={tournamentStats.top3Finishes} />
-          <StatItem label="Prize CP" value={tournamentStats.totalPrizeMoney.toLocaleString()} />
+          <StatItem label="Prize MP" value={tournamentStats.totalPrizeMoney.toLocaleString()} />
         </div>
       </div>
 
@@ -71,7 +71,7 @@ const ProfileStatsCard = ({ profile }: ProfileStatsCardProps) => {
           <span className="text-xs sm:text-sm text-muted-foreground">Total Winnings</span>
         </div>
         <span className="text-sm sm:text-base font-bold text-foreground">
-          {lobbyStats.totalWinnings.toLocaleString()} CP
+          {lobbyStats.totalWinnings.toLocaleString()} MP
         </span>
       </div>
     </div>

@@ -41,7 +41,7 @@ const WalletWithdrawTab = ({ balance }: WalletWithdrawTabProps) => {
   return (
     <div className="space-y-4 sm:space-y-6">
       <p className="text-xs sm:text-sm text-muted-foreground">
-        Transfer Chuta back to your platform wallet. 10% fee applies. Minimum {MIN_WITHDRAW.toLocaleString()} CP.
+        Transfer Morgan Points back to your platform wallet. 10% fee applies. Minimum {MIN_WITHDRAW.toLocaleString()} MP.
       </p>
 
       {/* Available balance */}
@@ -50,7 +50,7 @@ const WalletWithdrawTab = ({ balance }: WalletWithdrawTabProps) => {
         <div className="flex items-center gap-1.5">
           <Zap className="w-4 h-4 text-warning" />
           <span className="text-sm sm:text-base font-bold text-foreground">
-            {balance.toLocaleString()} CP
+            {balance.toLocaleString()} MP
           </span>
         </div>
       </div>
@@ -94,7 +94,7 @@ const WalletWithdrawTab = ({ balance }: WalletWithdrawTabProps) => {
       {/* Amount input */}
       <div>
         <label className="block text-xs sm:text-sm text-muted-foreground mb-2">
-          Amount to withdraw (CP)
+          Amount to withdraw (MP)
         </label>
         <div className="relative">
           <Zap className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-warning pointer-events-none" />
@@ -110,7 +110,7 @@ const WalletWithdrawTab = ({ balance }: WalletWithdrawTabProps) => {
           <p className="flex items-center gap-1.5 mt-2 text-xs text-red-400">
             <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
             {num < MIN_WITHDRAW
-              ? `Minimum withdrawal is ${MIN_WITHDRAW.toLocaleString()} CP`
+              ? `Minimum withdrawal is ${MIN_WITHDRAW.toLocaleString()} MP`
               : "Amount exceeds available balance"}
           </p>
         )}
@@ -120,16 +120,16 @@ const WalletWithdrawTab = ({ balance }: WalletWithdrawTabProps) => {
       {breakdown && isValid && (
         <div className="p-3 sm:p-4 bg-card border border-border rounded-xl space-y-2 text-xs sm:text-sm">
           <div className="flex justify-between text-muted-foreground">
-            <span>Chuta amount</span>
-            <span>{num.toLocaleString()} CP</span>
+            <span>MP amount</span>
+            <span>{num.toLocaleString()} MP</span>
           </div>
           <div className="flex justify-between text-red-400">
             <span>10% fee</span>
-            <span>-{breakdown.fee.toLocaleString()} CP</span>
+            <span>-{breakdown.fee.toLocaleString()} MP</span>
           </div>
           <div className="flex justify-between text-muted-foreground">
-            <span>Net Chuta</span>
-            <span>{breakdown.net.toLocaleString()} CP</span>
+            <span>Net MP</span>
+            <span>{breakdown.net.toLocaleString()} MP</span>
           </div>
           <div className="border-t border-border pt-2 flex justify-between font-semibold text-foreground">
             <span>You receive</span>
@@ -148,7 +148,7 @@ const WalletWithdrawTab = ({ balance }: WalletWithdrawTabProps) => {
         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold py-3 sm:py-4 disabled:opacity-40"
       >
         <ArrowUpRight className="w-4 h-4 mr-2" />
-        {isPending ? "Processing..." : isValid ? `Withdraw ${num.toLocaleString()} CP` : "Withdraw Chuta"}
+        {isPending ? "Processing..." : isValid ? `Withdraw ${num.toLocaleString()} MP` : "Withdraw MP"}
       </Button>
     </div>
   );

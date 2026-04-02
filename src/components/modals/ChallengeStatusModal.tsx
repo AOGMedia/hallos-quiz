@@ -209,11 +209,11 @@ const ChallengeStatusModal = ({
               <div className="grid grid-cols-2 gap-2">
                 <div className="p-3 bg-secondary rounded-xl text-center">
                   <p className="text-[10px] text-muted-foreground mb-1">Your offer</p>
-                  <p className="text-sm font-bold text-foreground">{wagerAmount.toLocaleString()} CP</p>
+                  <p className="text-sm font-bold text-foreground">{wagerAmount.toLocaleString()} MP</p>
                 </div>
                 <div className="p-3 bg-warning/10 border border-warning/30 rounded-xl text-center">
                   <p className="text-[10px] text-muted-foreground mb-1">Their counter</p>
-                  <p className="text-sm font-bold text-warning">{counterAmount.toLocaleString()} CP</p>
+                  <p className="text-sm font-bold text-warning">{counterAmount.toLocaleString()} MP</p>
                 </div>
               </div>
               <CategoryTags categories={categories} label="Categories" />
@@ -221,7 +221,7 @@ const ChallengeStatusModal = ({
             <div className="flex gap-2 sm:gap-3">
               <button onClick={onDeclineCounter} className="btn-ghost flex-1 text-sm py-2.5">Decline</button>
               <button onClick={onAcceptCounter} className="btn-primary flex-1 text-sm py-2.5 bg-warning hover:bg-warning/90 text-background">
-                Accept {counterAmount.toLocaleString()} CP
+                Accept {counterAmount.toLocaleString()} MP
               </button>
             </div>
           </>

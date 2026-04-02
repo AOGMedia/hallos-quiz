@@ -22,7 +22,7 @@ const ForfeitModal = ({ penaltyAmount, opponentName, onConfirm, onCancel }: Forf
       <p className="text-xs sm:text-sm text-muted-foreground mb-5">
         Forfeiting gives <span className="text-primary font-medium">{opponentName}</span> the win.
         {penaltyAmount > 0 && (
-          <> You will lose <span className="text-destructive font-semibold">{penaltyAmount.toLocaleString()} CP</span> as a penalty.</>
+          <> You will lose <span className="text-destructive font-semibold">{penaltyAmount.toLocaleString()} MP</span> as a penalty.</>
         )}
       </p>
 

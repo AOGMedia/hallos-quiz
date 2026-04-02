@@ -36,7 +36,7 @@ const ResultsScoreCard = ({
         </div>
 
         <div className="flex flex-col items-center flex-shrink-0 px-2">
-          <span className="text-[8px] sm:text-xs text-muted-foreground whitespace-nowrap">Chuta points won</span>
+          <span className="text-[8px] sm:text-xs text-muted-foreground whitespace-nowrap">Morgan Points won</span>
           <span className="text-base sm:text-xl text-accent font-bold">⚡</span>
         </div>
 
