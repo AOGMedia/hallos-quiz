@@ -142,24 +142,10 @@ const AppLayout = () => {
     onIncomingChallenge((payload) => setIncomingChallenge(payload));
     onPlayersUpdated((payload) => setOnlineCount(payload.onlineCount));
     
-    // Global resilience: if server says we are in a match, go there!
+    // Global resilience: if server says we are in a match but we are in AppLayout, 
+    // we ignore it and let the user stay here (they abandoned the match).
     onMatchStateRestored((match) => {
-      if (location.pathname === "/game") return; // already there
-      if (location.pathname === "/lobby") return; // don't hijack user from lobby
-      if (sessionStorage.getItem("matchEnded") === "true") return; // match already ended locally
-      
-      console.log("[AppLayout] Match state restored, auto-navigating to /game");
-      sessionStorage.removeItem("matchEnded");
-      sessionStorage.setItem("currentMatch", JSON.stringify({
-        matchId: match.matchId,
-        player1: { name: userProfile.nickname, avatar: userProfile.avatar },
-        player2: match.opponent 
-          ? { name: match.opponent.nickname, avatar: match.opponent.avatarUrl } 
-          : { name: "Opponent", avatar: "" },
-        questions: match.questions,
-        challengerId: match.challengerId,
-      }));
-      navigate("/game");
+      console.log("[AppLayout] Match state restored event ignored because user is in dashboard:", match.matchId);
     });
 
     return () => {
@@ -168,6 +154,13 @@ const AppLayout = () => {
       offMatchStateRestored();
     };
   }, [location.pathname, navigate, userProfile]);
+
+  // If user navigates ANYWHERE within AppLayout, they are by definition not in a game.
+  // Erase any lingering match state.
+  useEffect(() => {
+    sessionStorage.removeItem("currentMatch");
+    sessionStorage.removeItem("matchEnded");
+  }, [location.pathname]);
   const activeNav: NavItem =
     PATH_TO_NAV[location.pathname] ?? "lobby";
 

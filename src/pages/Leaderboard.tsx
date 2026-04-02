@@ -164,17 +164,29 @@ const Leaderboard = () => {
       {isLoading ? (
         <SkeletonRows />
       ) : (
-        <>
-          {activeTab === "global" && (
+        <div className="min-h-[400px]">
+          {activeTab === "global" && globalQuery.data && (
             <GlobalTab
               rankings={globalRankings}
               userRank={userRank}
               totalPlayers={totalPlayers}
             />
           )}
-          {activeTab === "lobby" && <LobbyTab rankings={lobbyRankings} />}
-          {activeTab === "tournament" && <TournamentTab rankings={tournamentRankings} />}
-        </>
+          {activeTab === "lobby" && (
+            <LobbyTab rankings={lobbyRankings} />
+          )}
+          {activeTab === "tournament" && (
+            <TournamentTab rankings={tournamentRankings} />
+          )}
+          
+          {/* Fallback if no data and not loading */}
+          {!isLoading && activeTab === "lobby" && lobbyRankings.length === 0 && !lobbyQuery.isError && (
+             <div className="text-center py-20 bg-card border border-dashed border-border rounded-xl">
+               <Swords className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
+               <p className="text-muted-foreground">Waiting for more matches to be played...</p>
+             </div>
+          )}
+        </div>
       )}
     </div>
   );
