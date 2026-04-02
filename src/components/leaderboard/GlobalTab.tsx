@@ -26,8 +26,8 @@ const GlobalTab = ({ rankings, userRank, totalPlayers }: GlobalTabProps) => (
         <span>#</span>
         <span>Player</span>
         <span className="text-right">Winnings</span>
-        <span className="text-right hidden sm:block">Win %</span>
-        <span className="text-right hidden sm:block">Accuracy</span>
+        <span className="text-right hidden sm:block">Win </span>
+        <span className="text-right hidden sm:block">Accuracy%</span>
       </div>
 
       {rankings.map((entry, i) => (
@@ -54,16 +54,16 @@ const GlobalTab = ({ rankings, userRank, totalPlayers }: GlobalTabProps) => (
               {entry.totalWinnings.toLocaleString()}
             </span>
           </div>
+          <div className="hidden sm:flex items-center justify-end gap-1">
+            <Target className="w-3 h-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">{entry.lobbyStats?.wins ?? 0} wins</span>
+          </div>
 
           <div className="hidden sm:flex items-center justify-end gap-1">
             <BarChart2 className="w-3 h-3 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">{(entry.lobbyStats?.winRate ?? 0).toFixed(1)}%</span>
           </div>
 
-          <div className="hidden sm:flex items-center justify-end gap-1">
-            <Target className="w-3 h-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{entry.lobbyStats?.wins ?? 0} wins</span>
-          </div>
         </div>
       ))}
     </div>

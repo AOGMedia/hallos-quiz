@@ -267,7 +267,7 @@ const Lobby = () => {
                   {searchQuery ? `No players matching "${searchQuery}"` : "No players online right now"}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {searchQuery ? "Try a different name" : "Check back soon — the lobby fills up fast"}
+                  {searchQuery ? "Try a different nickName" : "Check back soon - the lobby fills up fast"}
                 </p>
               </div>
             ) : (

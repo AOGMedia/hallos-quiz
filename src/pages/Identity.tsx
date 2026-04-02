@@ -193,7 +193,7 @@ const Identity = () => {
       <div className="mb-6 sm:mb-8">
         <h1 className="text-xl sm:text-3xl font-bold text-primary mb-1">Game Identity</h1>
         <p className="text-xs sm:text-base text-muted-foreground">
-          Your quiz persona — nickname, avatar, and stats
+          Your quiz persona - nickname, avatar, and stats
         </p>
       </div>
 
