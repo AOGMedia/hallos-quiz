@@ -73,7 +73,7 @@ export function useCancelChallenge() {
   });
 }
 
-export function useActiveMatch() {
+export function useActiveMatch(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["lobby", "active-match"],
     queryFn: () => getActiveMatch(),
@@ -84,6 +84,6 @@ export function useActiveMatch() {
       return 3000;
     },
     // Only enable when explicitly needed (e.g. in Lobby "Waiting" state)
-    enabled: false,
+    enabled: options?.enabled ?? false,
   });
 }
