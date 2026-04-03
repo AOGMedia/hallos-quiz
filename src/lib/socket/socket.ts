@@ -2,6 +2,8 @@ import { io, Socket } from "socket.io-client";
 import { getToken } from "@/store/authStore";
 
 let socket: Socket | null = null;
+let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+const HEARTBEAT_INTERVAL_MS = 30_000; // 30 seconds — well within the server's 120s timeout
 
 /** Listeners that want to know about connection state changes */
 type ConnectionListener = (connected: boolean) => void;
@@ -14,6 +16,25 @@ export const onConnectionChange = (fn: ConnectionListener) => {
 
 const notifyConnectionChange = (connected: boolean) => {
   connectionListeners.forEach((fn) => fn(connected));
+};
+
+/** Start sending heartbeat events to keep the server's custom lastHeartbeat fresh */
+const startHeartbeat = () => {
+  stopHeartbeat(); // clear any previous interval first
+  heartbeatInterval = setInterval(() => {
+    if (socket?.connected) {
+      socket.emit("heartbeat", { timestamp: Date.now() });
+    }
+  }, HEARTBEAT_INTERVAL_MS);
+  console.log("[socket] heartbeat started (every 30s)");
+};
+
+/** Stop the heartbeat interval */
+const stopHeartbeat = () => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
 };
 
 export const getSocket = (): Socket => {
@@ -34,6 +55,9 @@ export const getSocket = (): Socket => {
     socket.on("connect", () => {
       console.log("[socket] connected:", socket?.id);
       notifyConnectionChange(true);
+
+      // Start the application-level heartbeat to keep the server connection alive
+      startHeartbeat();
 
       // Auto-rejoin match room on reconnection to survive network blips
       try {
@@ -60,6 +84,7 @@ export const getSocket = (): Socket => {
 
     socket.on("disconnect", (reason) => {
       console.warn("[socket] disconnected:", reason);
+      stopHeartbeat();
       notifyConnectionChange(false);
 
       // If server deliberately disconnected us, don't auto-reconnect
@@ -118,6 +143,7 @@ export const drainAnswerQueue = (): QueuedAnswer[] => {
 
 /** Call on logout / session end */
 export const disconnectSocket = (): void => {
+  stopHeartbeat();
   if (socket) {
     socket.disconnect();
     socket = null;
