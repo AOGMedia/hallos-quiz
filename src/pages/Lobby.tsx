@@ -49,9 +49,9 @@ const Lobby = () => {
   const { mutate: declineCounterChallenge } = useDeclineChallenge();
   const { mutate: cancelChallenge } = useCancelChallenge();
 
-  const { data: activeMatchData } = useActiveMatch();
-  // Enable polling for active match only when in waiting/confirm state
-  const isPollingForMatch = modalState === "waiting" || modalState === "confirm";
+  // Enable polling for active match ONLY when in waiting state (challenger waiting for opponent)
+  const isPollingForMatch = modalState === "waiting";
+  const { data: activeMatchData } = useActiveMatch({ enabled: isPollingForMatch });
 
   // Clean stale match data on Lobby mount — prevents zombie redirects
   useEffect(() => {
@@ -90,7 +90,7 @@ const Lobby = () => {
       }));
       // Join match room immediately so we don't miss opponent_progress events
       joinMatch(payload.matchId);
-      setTimeout(() => navigateRef.current("/game"), 1500);
+      setTimeout(() => navigateRef.current("/game"), 800);
     };
 
     const registerListeners = () => {
@@ -134,7 +134,9 @@ const Lobby = () => {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Handle auto-start from poll if socket message was missed
+  // Handle auto-start from poll if socket message was missed.
+  // SAFETY: Only triggers if (a) we are actively waiting, (b) active match exists,
+  // and (c) the matchId matches our current challengeId — prevents ghost redirects.
   useEffect(() => {
     if (!isPollingForMatch || !activeMatchData?.match) return;
 
@@ -144,6 +146,14 @@ const Lobby = () => {
     if (!match.questions || match.questions.length === 0) return;
     if (!match.matchId) return;
 
+    // CRITICAL: Only act on this match if it corresponds to the challenge we just created.
+    // This prevents ghost redirects from old/unrelated matches.
+    // In this backend, matchId === challengeId, so compare against our tracked challenge.
+    const currentChallengeId = activeChallengeIdRef.current;
+    if (currentChallengeId && match.matchId !== currentChallengeId) {
+      return; // Not our match — ignore
+    }
+
     soundEngine.stopBellLoop();
     soundEngine.play("start_challenge");
     setModalState("accepted");
@@ -151,16 +161,16 @@ const Lobby = () => {
     sessionStorage.removeItem("matchEnded");
     sessionStorage.setItem("currentMatch", JSON.stringify({
       matchId: match.matchId,
-      player1: match.matchId ? { name: userProfile.nickname, avatar: userProfile.avatar } : { name: "You", avatar: "" },
-      player2: match.challenger 
-        ? { name: match.challenger.nickname, avatar: match.challenger.avatarUrl } 
+      player1: { name: userProfile.nickname, avatar: userProfile.avatar },
+      player2: match.challenger
+        ? { name: match.challenger.nickname, avatar: match.challenger.avatarUrl }
         : { name: "Opponent", avatar: "" },
       questions: match.questions,
       challengerId: match.challengerId,
     }));
 
     joinMatch(match.matchId);
-    setTimeout(() => navigate("/game"), 1500);
+    setTimeout(() => navigate("/game"), 800);
   }, [activeMatchData, isPollingForMatch, navigate, userProfile]);
 
   const players = (data?.players ?? []).filter((p) =>

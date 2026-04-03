@@ -26,7 +26,7 @@ const startHeartbeat = () => {
       socket.emit("heartbeat", { timestamp: Date.now() });
     }
   }, HEARTBEAT_INTERVAL_MS);
-  console.log("[socket] heartbeat started (every 30s)");
+  // console.log("[socket] heartbeat started (every 30s)");
 };
 
 /** Stop the heartbeat interval */
@@ -53,7 +53,7 @@ export const getSocket = (): Socket => {
     });
 
     socket.on("connect", () => {
-      console.log("[socket] connected:", socket?.id);
+      // console.log("[socket] connected:", socket?.id);
       notifyConnectionChange(true);
 
       // Start the application-level heartbeat to keep the server connection alive

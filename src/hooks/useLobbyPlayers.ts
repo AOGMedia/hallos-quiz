@@ -12,21 +12,21 @@ export function useLobbyPlayers(page: number) {
 
   useEffect(() => {
     const socket = getSocket();
-    console.log("[useLobbyPlayers] socket.connected:", socket.connected, "socket.id:", socket.id);
+    // console.log("[useLobbyPlayers] socket.connected:", socket.connected, "socket.id:", socket.id);
 
     if (socket.connected) {
-      console.log("[useLobbyPlayers] socket already connected, enabling fetch");
+      // console.log("[useLobbyPlayers] socket already connected, enabling fetch");
       setSocketReady(true);
       return;
     }
 
     const onConnect = () => {
-      console.log("[useLobbyPlayers] socket connected! id:", socket.id);
+      // console.log("[useLobbyPlayers] socket connected! id:", socket.id);
       setSocketReady(true);
     };
 
     const onConnectError = (err: Error) => {
-      console.error("[useLobbyPlayers] socket connect_error:", err.message);
+      // console.error("[useLobbyPlayers] socket connect_error:", err.message);
     };
 
     socket.on("connect", onConnect);
@@ -40,11 +40,11 @@ export function useLobbyPlayers(page: number) {
   const query = useQuery({
     queryKey: ["lobby", "players", page],
     queryFn: async () => {
-      console.log("[useLobbyPlayers] fetching page:", page);
+      // console.log("[useLobbyPlayers] fetching page:", page);
       const res = await fetchLobbyPlayers({ page, limit: LIMIT });
-      console.log("[useLobbyPlayers] response:", JSON.stringify(res, null, 2));
+      // console.log("[useLobbyPlayers] response:", JSON.stringify(res, null, 2));
       if (res.players?.length) {
-        console.log("[useLobbyPlayers] first player sample:", res.players[0]);
+        // console.log("[useLobbyPlayers] first player sample:", res.players[0]);
       }
       return res;
     },
@@ -52,11 +52,11 @@ export function useLobbyPlayers(page: number) {
     staleTime: 30_000,
   });
 
-  console.log("[useLobbyPlayers] socketReady:", socketReady, "status:", query.status, "players:", query.data?.players?.length ?? 0);
+  // console.log("[useLobbyPlayers] socketReady:", socketReady, "status:", query.status, "players:", query.data?.players?.length ?? 0);
 
   useEffect(() => {
     onPlayersUpdated((payload) => {
-      console.log("[useLobbyPlayers] players_updated event:", payload);
+      // console.log("[useLobbyPlayers] players_updated event:", payload);
       qc.invalidateQueries({ queryKey: ["lobby", "players", page] });
     });
     return () => offPlayersUpdated();
