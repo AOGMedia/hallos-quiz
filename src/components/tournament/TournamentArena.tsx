@@ -5,6 +5,7 @@ import TournamentCard from "./TournamentCard";
 import { useTournaments } from "@/hooks/useTournament";
 import { tournaments as mockTournaments, featuredTournament } from "@/data/tournamentData";
 import { FORMAT_LABELS, type TournamentFormat } from "@/lib/api/tournament";
+import FormatBadge from "./FormatBadge";
 import tournamentBg from "@/assets/tournament-bg.png";
 
 type FilterFormat = "all" | TournamentFormat;
@@ -91,11 +92,11 @@ const TournamentArena = ({ onHistoryClick, onHostClick, onSelectTournament }: To
                 </div>
                 <div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">ENTRY FEE</p>
-                  <p className="text-sm sm:text-lg font-bold text-foreground">{featuredTournament.entry} MP</p>
+                  <p className="text-sm sm:text-lg font-bold text-foreground">{featuredTournament.entryFee} MP</p>
                 </div>
                 <div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">FORMAT</p>
-                  <p className="text-sm sm:text-lg font-bold text-foreground">{featuredTournament.format}</p>
+                  <p className="text-sm sm:text-lg font-bold text-foreground"><FormatBadge format={featuredTournament.format} /></p>
                 </div>
               </div>
             </div>
@@ -108,7 +109,7 @@ const TournamentArena = ({ onHistoryClick, onHostClick, onSelectTournament }: To
               Join Now →
             </Button>
             <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
-              {featuredTournament.quota.current}/{featuredTournament.quota.max} Registered
+              {featuredTournament.currentParticipants}/{featuredTournament.maxParticipants} Registered
             </span>
           </div>
         </div>
@@ -184,43 +185,44 @@ const TournamentArena = ({ onHistoryClick, onHostClick, onSelectTournament }: To
                 </tr>
               </thead>
               <tbody>
-                {mockTournaments.map((t) => (
-                  <tr key={t.id} className="border-b border-border last:border-b-0 hover:bg-muted/50">
-                    <td className="p-2 sm:p-4">
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/20 flex items-center justify-center text-base sm:text-xl flex-shrink-0">
-                          {t.icon}
+                {mockTournaments.map((t) => {
+                  const isFull = t.currentParticipants >= t.maxParticipants;
+                  return (
+                    <tr key={t.id} className="border-b border-border last:border-b-0 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => onSelectTournament(t.id)}>
+                      <td className="p-2 sm:p-4">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/20 flex items-center justify-center text-base sm:text-xl flex-shrink-0">
+                            {t.icon}
+                          </div>
+                          <span className="font-medium text-foreground text-xs sm:text-base">{t.name}</span>
                         </div>
-                        <span className="font-medium text-foreground text-xs sm:text-base">{t.name}</span>
-                      </div>
-                    </td>
-                    <td className="p-2 sm:p-4">
-                      <span className="text-[10px] sm:text-xs px-1.5 py-0.5 rounded bg-muted border border-border text-foreground">
-                        {t.format}
-                      </span>
-                    </td>
-                    <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">{t.entry} MP</td>
-                    <td className="p-2 sm:p-4">
-                      <span className="text-yellow-400 flex items-center gap-1 text-xs sm:text-base whitespace-nowrap">
-                        <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
-                        {t.prizePool.toLocaleString()} MP
-                      </span>
-                    </td>
-                    <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">
-                      {t.quota.current}/{t.quota.max}
-                    </td>
-                    <td className="p-2 sm:p-4">
-                      <Button
-                        size="sm"
-                        disabled={t.quota.current >= t.quota.max}
-                        onClick={() => onSelectTournament(t.id)}
-                        className="bg-accent hover:bg-accent/90 text-accent-foreground text-xs disabled:opacity-50"
-                      >
-                        {t.quota.current >= t.quota.max ? "Full" : "Register"}
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="p-2 sm:p-4">
+                        <FormatBadge format={t.format} size="sm" />
+                      </td>
+                      <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">{t.entryFee} MP</td>
+                      <td className="p-2 sm:p-4">
+                        <span className="text-yellow-400 flex items-center gap-1 text-xs sm:text-base whitespace-nowrap">
+                          <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
+                          {t.prizePool.toLocaleString()} MP
+                        </span>
+                      </td>
+                      <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">
+                        {t.currentParticipants}/{t.maxParticipants}
+                      </td>
+                      <td className="p-2 sm:p-4">
+                        <Button
+                          size="sm"
+                          disabled={isFull}
+                          onClick={(e) => { e.stopPropagation(); onSelectTournament(t.id); }}
+                          className="bg-accent hover:bg-accent/90 text-accent-foreground text-xs disabled:opacity-50"
+                        >
+                          {isFull ? "Full" : "Register"}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
