@@ -10,6 +10,7 @@ import {
 } from "@/lib/api/tournament";
 import { useChutaWalletStore } from "@/store/chutaWalletStore";
 import { useTournamentStore } from "@/store/tournamentStore";
+import { isSampleTournament, getSampleTournamentDetail } from "@/data/tournamentData";
 
 export const TOURNAMENT_KEYS = {
   list:        (p: GetTournamentsParams) => ["tournaments", "list", p] as const,
@@ -38,9 +39,25 @@ export function useTournamentDetail(id: string) {
 
   const query = useQuery({
     queryKey: TOURNAMENT_KEYS.detail(id),
-    queryFn: () => getTournamentDetail(id),
+    queryFn: async () => {
+      // Try server first — if it succeeds, use real data
+      try {
+        return await getTournamentDetail(id);
+      } catch {
+        // If the tournament is a sample, return local mock data
+        const sample = getSampleTournamentDetail(id);
+        if (sample) return sample;
+        // Otherwise re-throw so React Query treats it as an error
+        throw new Error("Tournament not found");
+      }
+    },
     enabled: !!id,
     staleTime: 30_000,
+    retry: (failureCount, error) => {
+      // Don't retry for sample tournaments (the fallback already handled it)
+      if (isSampleTournament(id)) return false;
+      return failureCount < 2;
+    },
   });
 
   useEffect(() => {
@@ -63,10 +80,26 @@ export function useTournamentLeaderboard(id: string) {
 export function useRegisterTournament(id: string) {
   const qc = useQueryClient();
   const setBalance = useChutaWalletStore((s) => s.setBalance);
+  const getBalance = useChutaWalletStore((s) => s.balance);
   const markRegistered = useTournamentStore((s) => s.markRegistered);
 
   return useMutation({
-    mutationFn: () => registerForTournament(id),
+    mutationFn: async () => {
+      // For sample tournaments, simulate registration locally
+      if (isSampleTournament(id)) {
+        const sample = getSampleTournamentDetail(id);
+        const fee = sample?.tournament.entryFee ?? 0;
+        const newBalance = Math.max(0, getBalance - fee);
+        return {
+          success: true,
+          entryFeePaid: fee,
+          registrationId: `sample-reg-${Date.now()}`,
+          newBalance,
+          message: "Registered successfully (sample)",
+        };
+      }
+      return registerForTournament(id);
+    },
     onSuccess: (data) => {
       setBalance(data.newBalance);
       markRegistered(id);
@@ -79,10 +112,25 @@ export function useRegisterTournament(id: string) {
 export function useUnregisterTournament(id: string) {
   const qc = useQueryClient();
   const setBalance = useChutaWalletStore((s) => s.setBalance);
+  const getBalance = useChutaWalletStore((s) => s.balance);
   const markUnregistered = useTournamentStore((s) => s.markUnregistered);
 
   return useMutation({
-    mutationFn: () => unregisterFromTournament(id),
+    mutationFn: async () => {
+      // For sample tournaments, simulate unregistration locally
+      if (isSampleTournament(id)) {
+        const sample = getSampleTournamentDetail(id);
+        const refund = sample?.tournament.entryFee ?? 0;
+        const newBalance = getBalance + refund;
+        return {
+          success: true,
+          refundAmount: refund,
+          newBalance,
+          message: "Unregistered successfully (sample)",
+        };
+      }
+      return unregisterFromTournament(id);
+    },
     onSuccess: (data) => {
       setBalance(data.newBalance);
       markUnregistered(id);

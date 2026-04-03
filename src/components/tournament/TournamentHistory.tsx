@@ -1,18 +1,12 @@
 import { ChevronLeft, ChevronRight, Zap, Trophy, Gamepad2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { tournamentHistory, type TournamentFormat } from "@/data/tournamentData";
+import { tournamentHistory } from "@/data/tournamentData";
+import { FORMAT_COLORS, FORMAT_LABELS } from "@/lib/api/tournament";
 import { useState } from "react";
 
 interface TournamentHistoryProps {
   onBack: () => void;
 }
-
-const formatColors: Record<TournamentFormat, string> = {
-  "Battle Royale": "bg-red-500/20 text-red-400 border border-red-500/30",
-  "Speed Run": "bg-orange-500/20 text-orange-400 border border-orange-500/30",
-  "Knockout": "bg-muted text-foreground border border-border",
-  "Classic": "bg-green-500/20 text-green-400 border border-green-500/30",
-};
 
 const TournamentHistory = ({ onBack }: TournamentHistoryProps) => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -116,8 +110,8 @@ const TournamentHistory = ({ onBack }: TournamentHistoryProps) => {
                     </div>
                   </td>
                   <td className="p-2 sm:p-4">
-                    <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded whitespace-nowrap ${formatColors[item.format]}`}>
-                      {item.format}
+                    <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded whitespace-nowrap ${FORMAT_COLORS[item.format]}`}>
+                      {FORMAT_LABELS[item.format]}
                     </span>
                   </td>
                   <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">{item.entry} MP</td>
