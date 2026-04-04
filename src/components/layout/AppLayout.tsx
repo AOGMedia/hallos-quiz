@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
-import Sidebar from "./Sidebar";
+import Sidebar, { type NavItem } from "./Sidebar";
 import TopBar from "./TopBar";
 import ExitConfirmModal from "@/components/modals/ExitConfirmModal";
 import IncomingChallengeModal from "@/components/modals/IncomingChallengeModal";
@@ -22,7 +22,6 @@ import { useChutaBalance } from "@/hooks/useChutaWallet";
 import { useChutaWalletStore } from "@/store/chutaWalletStore";
 import { useQuizProfileStore } from "@/store/quizProfileStore";
 
-type NavItem = "lobby" | "tournament" | "leaderboard" | "cashout" | "identity";
 
 const PATH_TO_NAV: Record<string, NavItem> = {
   "/lobby":       "lobby",
@@ -30,6 +29,7 @@ const PATH_TO_NAV: Record<string, NavItem> = {
   "/leaderboard": "leaderboard",
   "/wallet":      "cashout",
   "/identity":    "identity",
+  "/guide":       "guide",
 };
 
 const NAV_TO_PATH: Record<NavItem, string> = {
@@ -38,6 +38,7 @@ const NAV_TO_PATH: Record<NavItem, string> = {
   leaderboard: "/leaderboard",
   cashout:     "/wallet",
   identity:    "/identity",
+  guide:       "/guide",
 };
 
 function resolveProfile(): { nickname: string; avatar: string } | null {
@@ -144,8 +145,8 @@ const AppLayout = () => {
     
     // Global resilience: if server says we are in a match but we are in AppLayout, 
     // we ignore it and let the user stay here (they abandoned the match).
-    onMatchStateRestored((match) => {
-      console.log("[AppLayout] Match state restored event ignored because user is in dashboard:", match.matchId);
+    onMatchStateRestored((_match) => {
+      // Intentionally ignored — user is in dashboard, not in a game
     });
 
     return () => {
