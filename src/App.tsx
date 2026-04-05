@@ -11,6 +11,7 @@ import Leaderboard from "./pages/Leaderboard";
 import ChutaWallet from "./pages/ChutaWallet";
 import Identity from "./pages/Identity";
 import Gameplay from "./pages/Gameplay";
+import Guide from "./pages/Guide";
 import NotFound from "./pages/NotFound";
 import { getToken } from "./store/authStore";
 
@@ -50,6 +51,7 @@ const App = () => (
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/wallet"      element={<ChutaWallet />} />
           <Route path="/identity"    element={<Identity />} />
+          <Route path="/guide"       element={<Guide />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

@@ -1,8 +1,8 @@
-import { Home, Trophy, BarChart3, Wallet, User, ArrowLeft, Menu, X } from "lucide-react";
+import { Home, Trophy, BarChart3, Wallet, User, ArrowLeft, Menu, X, HelpCircle } from "lucide-react";
 import AahbibiLogo from "@/components/icons/AahbibiLogo";
 import { useState } from "react";
 
-type NavItem = "lobby" | "tournament" | "leaderboard" | "cashout" | "identity";
+export type NavItem = "lobby" | "tournament" | "leaderboard" | "cashout" | "identity" | "guide";
 
 interface SidebarProps {
   activeItem: NavItem;
@@ -19,6 +19,7 @@ const Sidebar = ({ activeItem, onNavigate, onExit }: SidebarProps) => {
     { id: "leaderboard", label: "Leaderboard", icon: BarChart3 },
     { id: "cashout", label: "Chuta Wallet", icon: Wallet },
     { id: "identity", label: "Game Identity", icon: User },
+    { id: "guide", label: "Guide", icon: HelpCircle },
   ];
 
   const handleNavigate = (item: NavItem) => {
