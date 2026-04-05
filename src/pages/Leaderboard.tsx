@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trophy, Globe, Swords, Users, RefreshCw } from "lucide-react";
+import { Trophy, Globe, Swords, Users, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import GlobalTab from "@/components/leaderboard/GlobalTab";
 import LobbyTab from "@/components/leaderboard/LobbyTab";
 import TournamentTab from "@/components/leaderboard/TournamentTab";
@@ -7,15 +7,45 @@ import {
   useGlobalLeaderboard,
   useLobbyLeaderboard,
   useTournamentLeaderboard,
-  useActiveUsers,
 } from "@/hooks/useLeaderboard";
+import { useOnlineCountStore } from "@/store/onlineCountStore";
+
 type LeaderboardTab = "global" | "lobby" | "tournament";
+
+const PAGE_SIZE = 20;
 
 const TABS: { id: LeaderboardTab; label: string; icon: typeof Globe }[] = [
   { id: "global",     label: "Global",     icon: Globe   },
   { id: "lobby",      label: "Lobby",      icon: Swords  },
   { id: "tournament", label: "Tournament", icon: Trophy  },
 ];
+
+const Pagination = ({
+  page, totalPages, onPrev, onNext,
+}: { page: number; totalPages: number; onPrev: () => void; onNext: () => void }) => {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-3 mt-4">
+      <button
+        onClick={onPrev}
+        disabled={page === 1}
+        className="p-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+      <span className="text-xs text-muted-foreground">
+        Page <span className="font-semibold text-foreground">{page}</span> of {totalPages}
+      </span>
+      <button
+        onClick={onNext}
+        disabled={page === totalPages}
+        className="p-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
 
 // ── Skeleton loader ───────────────────────────────────────────────────────────
 
@@ -36,18 +66,37 @@ const SkeletonRows = () => (
 
 const Leaderboard = () => {
   const [activeTab, setActiveTab] = useState<LeaderboardTab>("global");
+  const [globalPage, setGlobalPage] = useState(1);
+  const [lobbyPage, setLobbyPage] = useState(1);
+  const [tournamentPage, setTournamentPage] = useState(1);
 
   const globalQuery    = useGlobalLeaderboard();
   const lobbyQuery     = useLobbyLeaderboard();
   const tournamentQuery = useTournamentLeaderboard();
-  const activeUsersQuery = useActiveUsers();
+  const activeCount    = useOnlineCountStore((s) => s.count);
 
   const globalRankings     = globalQuery.data?.rankings     ?? [];
   const lobbyRankings      = lobbyQuery.data?.rankings      ?? [];
   const tournamentRankings = tournamentQuery.data?.rankings ?? [];
   const userRank           = globalQuery.data?.userRank     ?? 0;
   const totalPlayers       = globalQuery.data?.totalPlayers ?? 0;
-  const activeCount        = activeUsersQuery.data?.count   ?? 0;
+
+  // Paginated slices
+  const globalTotalPages     = Math.max(1, Math.ceil(globalRankings.length / PAGE_SIZE));
+  const lobbyTotalPages      = Math.max(1, Math.ceil(lobbyRankings.length / PAGE_SIZE));
+  const tournamentTotalPages = Math.max(1, Math.ceil(tournamentRankings.length / PAGE_SIZE));
+
+  const pagedGlobal     = globalRankings.slice((globalPage - 1) * PAGE_SIZE, globalPage * PAGE_SIZE);
+  const pagedLobby      = lobbyRankings.slice((lobbyPage - 1) * PAGE_SIZE, lobbyPage * PAGE_SIZE);
+  const pagedTournament = tournamentRankings.slice((tournamentPage - 1) * PAGE_SIZE, tournamentPage * PAGE_SIZE);
+
+  const handleTabChange = (tab: LeaderboardTab) => {
+    setActiveTab(tab);
+    // Reset page on tab switch
+    if (tab === "global") setGlobalPage(1);
+    if (tab === "lobby") setLobbyPage(1);
+    if (tab === "tournament") setTournamentPage(1);
+  };
 
   const isLoading =
     (activeTab === "global"     && globalQuery.isLoading) ||
@@ -72,7 +121,7 @@ const Leaderboard = () => {
         <div>
           <h1 className="text-xl sm:text-3xl font-bold text-primary mb-1">Leaderboard</h1>
           <p className="text-xs sm:text-base text-muted-foreground">
-            Top players ranked by Chuta Points earned
+            Top players ranked by Morgan Points earned
           </p>
         </div>
 
@@ -140,7 +189,7 @@ const Leaderboard = () => {
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
-            onClick={() => setActiveTab(id)}
+            onClick={() => handleTabChange(id)}
             className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 border ${
               activeTab === id
                 ? "bg-primary border-primary text-primary-foreground"
@@ -166,19 +215,24 @@ const Leaderboard = () => {
       ) : (
         <div className="min-h-[400px]">
           {activeTab === "global" && globalQuery.data && (
-            <GlobalTab
-              rankings={globalRankings}
-              userRank={userRank}
-              totalPlayers={totalPlayers}
-            />
+            <>
+              <GlobalTab rankings={pagedGlobal} userRank={userRank} totalPlayers={totalPlayers} />
+              <Pagination page={globalPage} totalPages={globalTotalPages} onPrev={() => setGlobalPage(p => p - 1)} onNext={() => setGlobalPage(p => p + 1)} />
+            </>
           )}
           {activeTab === "lobby" && (
-            <LobbyTab rankings={lobbyRankings} />
+            <>
+              <LobbyTab rankings={pagedLobby} />
+              <Pagination page={lobbyPage} totalPages={lobbyTotalPages} onPrev={() => setLobbyPage(p => p - 1)} onNext={() => setLobbyPage(p => p + 1)} />
+            </>
           )}
           {activeTab === "tournament" && (
-            <TournamentTab rankings={tournamentRankings} />
+            <>
+              <TournamentTab rankings={pagedTournament} />
+              <Pagination page={tournamentPage} totalPages={tournamentTotalPages} onPrev={() => setTournamentPage(p => p - 1)} onNext={() => setTournamentPage(p => p + 1)} />
+            </>
           )}
-          
+
           {/* Fallback if no data and not loading */}
           {!isLoading && activeTab === "lobby" && lobbyRankings.length === 0 && !lobbyQuery.isError && (
              <div className="text-center py-20 bg-card border border-dashed border-border rounded-xl">

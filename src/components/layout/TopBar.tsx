@@ -1,4 +1,5 @@
 import { Search, Zap, Bell } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface TopBarProps {
   onlineCount: number;
@@ -11,6 +12,7 @@ interface TopBarProps {
 }
 
 const TopBar = ({ onlineCount, zetaPoints, wins, totalGames, userAvatar, searchQuery = "", onSearchChange }: TopBarProps) => {
+  const navigate = useNavigate();
   return (
     <header className="min-h-[56px] md:h-16 border-b border-border bg-background flex flex-col md:flex-row items-stretch md:items-center justify-between px-4 md:px-6 py-2 md:py-0 gap-2 md:gap-0">
       {/* Search - hidden on mobile, visible from md up */}
@@ -32,7 +34,11 @@ const TopBar = ({ onlineCount, zetaPoints, wins, totalGames, userAvatar, searchQ
           <span className="w-2 h-2 rounded-full bg-success" />
           <span className="text-xs md:text-sm text-muted-foreground whitespace-nowrap">
             <span className="hidden sm:inline">{onlineCount.toLocaleString()} players online</span>
-            <span className="sm:hidden">{(onlineCount / 1000).toFixed(1)}k online</span>
+            <span className="sm:hidden">
+              {onlineCount >= 1000
+                ? `${(onlineCount / 1000).toFixed(1)}k online`
+                : `${onlineCount} online`}
+            </span>
           </span>
         </div>
 
@@ -52,7 +58,12 @@ const TopBar = ({ onlineCount, zetaPoints, wins, totalGames, userAvatar, searchQ
         </div>
 
         {/* Avatar */}
-        <img src={userAvatar} alt="User" className="w-8 h-8 md:w-9 md:h-9 rounded-full border-2 border-border shrink-0" />
+        <img
+          src={userAvatar}
+          alt="User"
+          onClick={() => navigate("/identity")}
+          className="w-8 h-8 md:w-9 md:h-9 rounded-full border-2 border-border shrink-0 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+        />
 
         {/* Notifications */}
         <button className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-muted shrink-0">
