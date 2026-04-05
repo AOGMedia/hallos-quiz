@@ -215,7 +215,7 @@ const ProfileSetup = () => {
                 navigate("/lobby");
               }
             }}
-            className="text-xs text-muted-foreground hover:text-primary transition-colors text-center w-full"
+            className="text-lg text-muted-foreground hover:text-primary transition-colors text-center w-full"
           >
             Already registered? <span className="text-primary underline">Go to Lobby</span>
           </button>

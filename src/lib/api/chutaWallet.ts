@@ -110,3 +110,30 @@ export const fetchChutaTransactions = async (
   );
   return res.data;
 };
+
+// ── Hallos wallet balance ─────────────────────────────────────────────────────
+
+export interface HallosBalanceEntry {
+  availableBalance: number;
+  pendingBalance: number;
+  totalBalance: number;
+  currency: string;
+  requiredGateway?: string;
+  id?: string;
+}
+
+export interface HallosWalletBalanceResponse {
+  success: boolean;
+  balance?: HallosBalanceEntry;
+  balances?: Record<string, HallosBalanceEntry>;
+}
+
+export const getWalletBalance = async (
+  currency?: string
+): Promise<HallosWalletBalanceResponse> => {
+  const res = await apiClient.get<HallosWalletBalanceResponse>(
+    "/api/wallet/balance",
+    { params: currency ? { currency } : undefined }
+  );
+  return res.data;
+};

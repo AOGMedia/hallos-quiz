@@ -1,16 +1,25 @@
 import { useState, useMemo } from "react";
-import { Zap, ShoppingCart, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Zap, ShoppingCart, AlertCircle, CheckCircle2, Wallet, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { purchasePackages, CP_TO_NGN } from "@/data/walletData";
-import { usePurchaseChuta } from "@/hooks/useChutaWallet";
+import { usePurchaseChuta, useHallosBalances } from "@/hooks/useChutaWallet";
 
 const MIN_CP = 100;
+type Currency = "NGN" | "USD";
 
 const WalletPurchaseTab = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [customCp, setCustomCp] = useState("");
+  const [activeCurrency, setActiveCurrency] = useState<Currency>("NGN");
   const { mutate, isPending, isSuccess, isError, error, reset } = usePurchaseChuta();
+  const { ngn, usd, isLoading: hallosLoading } = useHallosBalances();
+
+  const hallosBalance = activeCurrency === "NGN"
+    ? ngn.data?.balance?.availableBalance ?? 0
+    : usd.data?.balance?.availableBalance ?? 0;
+
+  const currencySymbol = activeCurrency === "NGN" ? "₦" : "$";
 
   // Effective CP: preset takes priority, else custom input
   const effectiveCp = useMemo(() => {
@@ -46,6 +55,48 @@ const WalletPurchaseTab = () => {
       <p className="text-xs sm:text-sm text-muted-foreground">
         Transfer from your Hallos wallet instantly.
       </p>
+
+      {/* Hallos wallet balance + top-up */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-3 py-2.5 bg-card border border-border rounded-lg">
+        {/* Balance + toggle */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Wallet className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <span className="text-xs text-muted-foreground shrink-0">Your Hallos balance:</span>
+          {hallosLoading ? (
+            <span className="w-16 h-3 bg-muted rounded animate-pulse inline-block" />
+          ) : (
+            <span className="text-xs font-semibold text-foreground">
+              {currencySymbol}{hallosBalance.toLocaleString()}
+            </span>
+          )}
+          <div className="flex items-center bg-muted rounded-md p-0.5 ml-1 shrink-0">
+            {(["NGN", "USD"] as Currency[]).map((c) => (
+              <button
+                key={c}
+                onClick={() => setActiveCurrency(c)}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                  activeCurrency === c
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Top-up button — full width on mobile, auto on sm+ */}
+        <a
+          href="https://www.hallos.net/dashboard/wallet"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors sm:shrink-0 w-full sm:w-auto"
+        >
+          <ExternalLink className="w-3 h-3" />
+          Top up Hallos wallet
+        </a>
+      </div>
 
       {/* Conversion note */}
       <div className="px-3 py-2 bg-card border border-border rounded-lg text-xs text-muted-foreground">

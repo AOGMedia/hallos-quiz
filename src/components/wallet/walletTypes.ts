@@ -10,7 +10,7 @@ export interface WalletTabConfig {
 
 export const WALLET_TABS: WalletTabConfig[] = [
   { id: "balance",  label: "Balance",             icon: Wallet },
-  { id: "purchase", label: "Purchase Chuta",       icon: ShoppingCart },
-  { id: "withdraw", label: "Withdraw Chuta",       icon: ArrowUpRight },
+  { id: "purchase", label: "Purchase Morgan",       icon: ShoppingCart },
+  { id: "withdraw", label: "Withdraw Morgan",       icon: ArrowUpRight },
   { id: "history",  label: "Transaction History",  icon: History },
 ];

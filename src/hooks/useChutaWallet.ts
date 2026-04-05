@@ -79,3 +79,29 @@ export function useWithdrawChuta() {
     },
   });
 }
+
+// ── Hallos wallet balance ─────────────────────────────────────────────────────
+
+import { getWalletBalance } from "@/lib/api/chutaWallet";
+
+export function useHallosBalance(currency = "NGN") {
+  return useQuery({
+    queryKey: ["hallos", "balance", currency],
+    queryFn: () => getWalletBalance(currency),
+    staleTime: 30_000,
+  });
+}
+
+export function useHallosBalances() {
+  const ngn = useQuery({
+    queryKey: ["hallos", "balance", "NGN"],
+    queryFn: () => getWalletBalance("NGN"),
+    staleTime: 30_000,
+  });
+  const usd = useQuery({
+    queryKey: ["hallos", "balance", "USD"],
+    queryFn: () => getWalletBalance("USD"),
+    staleTime: 30_000,
+  });
+  return { ngn, usd, isLoading: ngn.isLoading || usd.isLoading };
+}

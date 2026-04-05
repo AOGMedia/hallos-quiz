@@ -19,8 +19,22 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    const status = error.response?.status;
     const message =
       error.response?.data?.message ?? error.message ?? "Request failed";
+
+    if (status === 401) {
+      // Token missing or expired — clear session and send back to main platform.
+      // The main platform's auth guard will redirect to signin and preserve
+      // the destination so the user lands back on the quiz after signing in.
+      sessionStorage.removeItem("auth_token");
+      sessionStorage.removeItem("userProfile");
+      sessionStorage.removeItem("currentMatch");
+      sessionStorage.removeItem("matchEnded");
+      window.location.href = "https://www.hallos.net/dashboard/games";
+      return new Promise(() => {}); // prevent further error propagation
+    }
+
     console.error("API Error:", message, error.response?.data);
     return Promise.reject(new Error(message));
   }

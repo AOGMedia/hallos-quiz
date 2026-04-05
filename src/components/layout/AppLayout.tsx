@@ -21,6 +21,7 @@ import { useAcceptChallenge, useDeclineChallenge, useCounterOffer } from "@/hook
 import { useChutaBalance } from "@/hooks/useChutaWallet";
 import { useChutaWalletStore } from "@/store/chutaWalletStore";
 import { useQuizProfileStore } from "@/store/quizProfileStore";
+import { useOnlineCountStore } from "@/store/onlineCountStore";
 
 
 const PATH_TO_NAV: Record<string, NavItem> = {
@@ -141,7 +142,10 @@ const AppLayout = () => {
   // Listen for incoming challenges globally
   useEffect(() => {
     onIncomingChallenge((payload) => setIncomingChallenge(payload));
-    onPlayersUpdated((payload) => setOnlineCount(payload.onlineCount));
+    onPlayersUpdated((payload) => {
+      setOnlineCount(payload.onlineCount);
+      useOnlineCountStore.getState().setCount(payload.onlineCount);
+    });
     
     // Global resilience: if server says we are in a match but we are in AppLayout, 
     // we ignore it and let the user stay here (they abandoned the match).
