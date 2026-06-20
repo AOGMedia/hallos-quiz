@@ -12,6 +12,7 @@ import ChutaWallet from "./pages/ChutaWallet";
 import Identity from "./pages/Identity";
 import Gameplay from "./pages/Gameplay";
 import Guide from "./pages/Guide";
+import CampaignQuiz from "./pages/CampaignQuiz";
 import NotFound from "./pages/NotFound";
 import { getToken } from "./store/authStore";
 
@@ -43,6 +44,7 @@ const App = () => (
         <Route path="/profile" element={<GuestOnlyRoute element={<ProfileSetup />} />} />
 
         <Route path="/game" element={<Gameplay />} />
+        <Route path="/campaign/quiz" element={<CampaignQuiz />} />
 
         {/* App shell — shared Sidebar + TopBar */}
         <Route element={<AppLayout />}>
