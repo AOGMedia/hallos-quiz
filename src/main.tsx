@@ -12,8 +12,13 @@ const params = new URLSearchParams(window.location.search);
 const urlToken = params.get("token");
 if (urlToken) {
   sessionStorage.setItem("auth_token", urlToken);
-  // Remove token from URL without triggering a page reload
-  const cleanUrl = window.location.pathname + window.location.hash;
+  // Only remove the JWT token param; leave other params (e.g. ?ctoken= for campaign quiz)
+  params.delete("token");
+  const remaining = params.toString();
+  const cleanUrl =
+    window.location.pathname +
+    (remaining ? "?" + remaining : "") +
+    window.location.hash;
   window.history.replaceState({}, "", cleanUrl);
 }
 
