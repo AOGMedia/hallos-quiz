@@ -3,7 +3,7 @@ How the quiz link works
 The email contains a link:
 
 
-https://www.hallos.net/campaign/quiz?token=<64-char-token>
+https://www.hallos.quiz/campaign/quiz?token=<64-char-token>
 When the user visits this page:
 
 
