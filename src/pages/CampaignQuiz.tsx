@@ -220,9 +220,9 @@ const CampaignQuiz = () => {
 
   // ── Mount: auth check + status fetch ─────────────────────────────────────
   useEffect(() => {
-    // console.log("[CampaignQuiz] token from URL:", searchParams.get("token"));
-    // console.log("[CampaignQuiz] campaignToken:", campaignToken);
-    // console.log("[CampaignQuiz] auth token present:", !!getToken());
+    console.log("[CampaignQuiz] token from URL:", searchParams.get("token"));
+    console.log("[CampaignQuiz] campaignToken:", campaignToken);
+    console.log("[CampaignQuiz] auth token present:", !!getToken());
 
     if (!campaignToken) { setPhase("no-token"); return; }
     if (!getToken()) {
