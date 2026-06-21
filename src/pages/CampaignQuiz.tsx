@@ -220,16 +220,21 @@ const CampaignQuiz = () => {
 
   // ── Mount: auth check + status fetch ─────────────────────────────────────
   useEffect(() => {
+    // console.log("[CampaignQuiz] token from URL:", searchParams.get("token"));
+    // console.log("[CampaignQuiz] campaignToken:", campaignToken);
+    // console.log("[CampaignQuiz] auth token present:", !!getToken());
+
     if (!campaignToken) { setPhase("no-token"); return; }
     if (!getToken()) {
       // Redirect to signin per campaign.md spec
       const redirectUrl = encodeURIComponent(`https://www.hallos.quiz/campaign/quiz?token=${campaignToken}`);
-      window.location.href = `https://www.hallos.quiz/signin?redirect=${redirectUrl}`;
+      window.location.href = `https://www.hallos.net/signin?redirect=${redirectUrl}`;
       return;
     }
 
     getCampaignQuizStatus(campaignToken)
       .then(async (res) => {
+        console.log("[CampaignQuiz] status response:", res);
         switch (res.status) {
           case "pending":
             setPendingExpiresAt(res.tokenExpiresAt ?? "");
@@ -257,6 +262,7 @@ const CampaignQuiz = () => {
       })
       .catch((err: unknown) => {
         const msg = (err as Error).message ?? "";
+        console.log("[CampaignQuiz] error fetching status:", msg);
         if (msg.toLowerCase().includes("expired")) { setPhase("expired"); return; }
         if (msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("already been used")) {
           setPhase("invalid");
@@ -265,7 +271,7 @@ const CampaignQuiz = () => {
         setErrorMsg(msg || "Could not load quiz.");
         setPhase("error");
       });
-  }, [campaignToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [campaignToken, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Render ────────────────────────────────────────────────────────────────
 
