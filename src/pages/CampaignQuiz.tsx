@@ -41,12 +41,12 @@ const ADVANCE_DELAY_MS = 800;
 const CampaignQuiz = () => {
   const [searchParams] = useSearchParams();
 
-  const urlCtoken = searchParams.get("ctoken");
-  const campaignToken = urlCtoken || sessionStorage.getItem("campaign_ctoken") || "";
+  const urlToken = searchParams.get("token");
+  const campaignToken = urlToken || sessionStorage.getItem("campaign_token") || "";
 
   useEffect(() => {
-    if (urlCtoken) sessionStorage.setItem("campaign_ctoken", urlCtoken);
-  }, [urlCtoken]);
+    if (urlToken) sessionStorage.setItem("campaign_token", urlToken);
+  }, [urlToken]);
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [errorMsg, setErrorMsg] = useState("");
@@ -221,7 +221,12 @@ const CampaignQuiz = () => {
   // ── Mount: auth check + status fetch ─────────────────────────────────────
   useEffect(() => {
     if (!campaignToken) { setPhase("no-token"); return; }
-    if (!getToken()) { setPhase("not-logged-in"); return; }
+    if (!getToken()) {
+      // Redirect to signin per campaign.md spec
+      const redirectUrl = encodeURIComponent(`https://www.hallos.quiz/campaign/quiz?token=${campaignToken}`);
+      window.location.href = `https://www.hallos.quiz/signin?redirect=${redirectUrl}`;
+      return;
+    }
 
     getCampaignQuizStatus(campaignToken)
       .then(async (res) => {
@@ -260,7 +265,7 @@ const CampaignQuiz = () => {
         setErrorMsg(msg || "Could not load quiz.");
         setPhase("error");
       });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [campaignToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Render ────────────────────────────────────────────────────────────────
 

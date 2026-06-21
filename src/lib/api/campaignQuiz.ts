@@ -23,10 +23,11 @@ campaignClient.interceptors.response.use(
 
     if (status === 401) {
       sessionStorage.removeItem("auth_token");
-      const ctoken = sessionStorage.getItem("campaign_ctoken") ?? "";
-      window.location.href = ctoken
-        ? `https://www.hallos.net/campaign/quiz?token=${ctoken}`
-        : "https://www.hallos.net/dashboard/games";
+      const token = sessionStorage.getItem("campaign_token") ?? "";
+      const redirectUrl = token
+        ? encodeURIComponent(`https://www.hallos.quiz/campaign/quiz?token=${token}`)
+        : encodeURIComponent("https://www.hallos.net/dashboard/games");
+      window.location.href = `https://www.hallos.net/signin?redirect=${redirectUrl}`;
       return new Promise(() => {});
     }
 
