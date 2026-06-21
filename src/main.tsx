@@ -12,21 +12,21 @@ const params = new URLSearchParams(window.location.search);
 const isCampaignQuizRoute = window.location.pathname === "/campaign/quiz";
 const urlToken = params.get("token");
 
-if (urlToken && !isCampaignQuizRoute) {
-  sessionStorage.setItem("auth_token", urlToken);
-  // Only remove the JWT token param; leave other params (e.g. ?ctoken= for campaign quiz)
-  params.delete("token");
-  const remaining = params.toString();
-  const cleanUrl =
-    window.location.pathname +
-    (remaining ? "?" + remaining : "") +
-    window.location.hash;
-  window.history.replaceState({}, "", cleanUrl);
-}
-
-// For campaign quiz route, save the campaign token to sessionStorage immediately
-if (isCampaignQuizRoute && urlToken) {
-  sessionStorage.setItem("campaign_token", urlToken);
+if (urlToken) {
+  if (isCampaignQuizRoute) {
+    // On campaign quiz route: save token but DO NOT remove from URL
+    sessionStorage.setItem("campaign_token", urlToken);
+  } else {
+    // On all other routes: treat as auth token, save and remove from URL
+    sessionStorage.setItem("auth_token", urlToken);
+    params.delete("token");
+    const remaining = params.toString();
+    const cleanUrl =
+      window.location.pathname +
+      (remaining ? "?" + remaining : "") +
+      window.location.hash;
+    window.history.replaceState({}, "", cleanUrl);
+  }
 }
 
 const queryClient = new QueryClient({
