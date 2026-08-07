@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="380" viewBox="0 0 1200 380" font-family="Inter, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="0%" r="75%">
+      <stop offset="0%" stop-color="#7C3AED" stop-opacity="0.45"/>
+      <stop offset="55%" stop-color="#7C3AED" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="88%" cy="95%" r="55%">
+      <stop offset="0%" stop-color="#21CAB9" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#21CAB9" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="55%" stop-color="#C4B5FD"/>
+      <stop offset="100%" stop-color="#21CAB9"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#21CAB9"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0 L0 0 0 40" fill="none" stroke="#1B2440" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="380" fill="#080C16"/>
+  <rect width="1200" height="380" fill="url(#grid)" opacity="0.55"/>
+  <rect width="1200" height="380" fill="url(#glow)"/>
+  <rect width="1200" height="380" fill="url(#glow2)"/>
+
+  <!-- logo mark -->
+  <g transform="translate(72 118)">
+    <rect width="86" height="86" rx="20" fill="#FF8A3D"/>
+    <path d="M24 22 h13 v20 h12 v-20 h13 v42 h-13 v-16 h-12 v16 h-13 z" fill="#0B1120"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="188" y="168" font-size="66" font-weight="800" letter-spacing="-2" fill="url(#word)">Hallos Quiz</text>
+  <text x="191" y="205" font-size="19" font-weight="600" letter-spacing="3.4" fill="#21CAB9">REAL-TIME 1V1 TRIVIA ARENA</text>
+  <text x="191" y="243" font-size="17" fill="#8FA0BF">Wager Morgan Points · answer against the clock · winner takes the pot</text>
+
+  <!-- stat pills -->
+  <g font-size="13" font-weight="600">
+    <g transform="translate(191 272)">
+      <rect width="150" height="34" rx="17" fill="#0C1321" stroke="#253154"/>
+      <circle cx="20" cy="17" r="4" fill="#1BC55A"/>
+      <text x="34" y="22" fill="#C9D6EC">14 categories</text>
+    </g>
+    <g transform="translate(353 272)">
+      <rect width="164" height="34" rx="17" fill="#0C1321" stroke="#253154"/>
+      <circle cx="20" cy="17" r="4" fill="#FACC3D"/>
+      <text x="34" y="22" fill="#C9D6EC">Socket.IO live play</text>
+    </g>
+    <g transform="translate(529 272)">
+      <rect width="150" height="34" rx="17" fill="#0C1321" stroke="#253154"/>
+      <circle cx="20" cy="17" r="4" fill="#21CAB9"/>
+      <text x="34" y="22" fill="#C9D6EC">1 MP = ₦14</text>
+    </g>
+  </g>
+
+  <!-- question card mockup -->
+  <g transform="translate(770 62)">
+    <rect width="368" height="256" rx="20" fill="#0C1321" stroke="#253154" stroke-width="1.5"/>
+
+    <!-- timer ring -->
+    <g transform="translate(36 34)">
+      <circle cx="19" cy="19" r="16" fill="none" stroke="#1B2440" stroke-width="4"/>
+      <circle cx="19" cy="19" r="16" fill="none" stroke="url(#ring)" stroke-width="4"
+              stroke-linecap="round" stroke-dasharray="100.5" stroke-dashoffset="30"
+              transform="rotate(-90 19 19)"/>
+      <text x="19" y="24" font-size="14" font-weight="700" fill="#F8FAFC" text-anchor="middle">07</text>
+    </g>
+    <text x="88" y="47" font-size="13" font-weight="600" fill="#8FA0BF">Question 4 of 10</text>
+    <g transform="translate(268 22)">
+      <rect width="76" height="26" rx="13" fill="#7C3AED" fill-opacity="0.18" stroke="#7C3AED" stroke-opacity="0.5"/>
+      <text x="38" y="18" font-size="12" font-weight="700" fill="#C4B5FD" text-anchor="middle">200 MP</text>
+    </g>
+
+    <text x="36" y="102" font-size="17" font-weight="700" fill="#F8FAFC">Which planet is closest to</text>
+    <text x="36" y="126" font-size="17" font-weight="700" fill="#F8FAFC">the Sun?</text>
+
+    <g font-size="13" font-weight="600">
+      <g transform="translate(36 148)">
+        <rect width="146" height="40" rx="10" fill="#111A2E" stroke="#253154"/>
+        <text x="16" y="25" fill="#7C8DAD">A</text><text x="38" y="25" fill="#C9D6EC">Venus</text>
+      </g>
+      <g transform="translate(194 148)">
+        <rect width="146" height="40" rx="10" fill="#12331F" stroke="#1BC55A"/>
+        <text x="16" y="25" fill="#1BC55A">B</text><text x="38" y="25" fill="#7DEBA5">Mercury</text>
+      </g>
+      <g transform="translate(36 198)">
+        <rect width="146" height="40" rx="10" fill="#111A2E" stroke="#253154"/>
+        <text x="16" y="25" fill="#7C8DAD">C</text><text x="38" y="25" fill="#C9D6EC">Mars</text>
+      </g>
+      <g transform="translate(194 198)">
+        <rect width="146" height="40" rx="10" fill="#111A2E" stroke="#253154"/>
+        <text x="16" y="25" fill="#7C8DAD">D</text><text x="38" y="25" fill="#C9D6EC">Earth</text>
+      </g>
+    </g>
+  </g>
+</svg>
