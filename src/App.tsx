@@ -13,6 +13,9 @@ import Identity from "./pages/Identity";
 import Gameplay from "./pages/Gameplay";
 import Guide from "./pages/Guide";
 import CampaignQuiz from "./pages/CampaignQuiz";
+import InviteLanding from "./pages/InviteLanding";
+import PendingInviteWatcher from "./components/invite/PendingInviteWatcher";
+import InviteNotifications from "./components/invite/InviteNotifications";
 import NotFound from "./pages/NotFound";
 import { getToken } from "./store/authStore";
 
@@ -45,6 +48,11 @@ const App = () => (
 
         <Route path="/game" element={<Gameplay />} />
         <Route path="/campaign/quiz" element={<CampaignQuiz />} />
+        {/* Invite token is a PATH param — never `?token=`, which main.tsx
+            treats as the auth JWT and would overwrite the user's session.
+            Reached via hallos.net/dashboard/games/invite/<token>, which
+            authenticates and forwards here with ?token=<jwt> attached. */}
+        <Route path="/invite/:token" element={<InviteLanding />} />
 
         {/* App shell — shared Sidebar + TopBar */}
         <Route element={<AppLayout />}>
@@ -58,6 +66,10 @@ const App = () => (
 
         <Route path="*" element={<NotFound />} />
       </Routes>
+
+      {/* Self-contained; both no-op without a JWT and never navigate on their own */}
+      <PendingInviteWatcher />
+      <InviteNotifications />
     </BrowserRouter>
   </TooltipProvider>
 );
