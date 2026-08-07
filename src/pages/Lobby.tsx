@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
+import { UserPlus } from "lucide-react";
 import LobbyPlayerCard from "@/components/lobby/LobbyPlayerCard";
 import ChallengeModal from "@/components/modals/ChallengeModal";
 import ChallengeStatusModal from "@/components/modals/ChallengeStatusModal";
 import ChallengeBoardTab from "@/components/lobby/ChallengeBoardTab";
+import InviteFriendModal from "@/components/invite/InviteFriendModal";
 import { soundEngine } from "@/lib/soundEngine";
 import { useLobbyPlayers } from "@/hooks/useLobbyPlayers";
 import { useCreateChallenge, useAcceptChallenge, useDeclineChallenge, useCancelChallenge, useActiveMatch } from "@/hooks/useChallenge";
@@ -32,6 +34,7 @@ const Lobby = () => {
   const { userProfile, searchQuery = "" } = useOutletContext<OutletCtx>();
 
   const [lobbyTab, setLobbyTab] = useState<"players" | "challenges">("players");
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [page, setPage] = useState(1);
   const [modalState, setModalState] = useState<ModalState>("none");
   const [selectedPlayer, setSelectedPlayer] = useState<LobbyPlayer | null>(null);
@@ -244,20 +247,30 @@ const Lobby = () => {
     <>
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col gap-4">
         {/* Tab switcher */}
-        <div className="flex gap-1.5">
-          {(["players", "challenges"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setLobbyTab(tab)}
-              className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border transition-colors ${
-                lobbyTab === tab
-                  ? "bg-primary border-primary text-primary-foreground"
-                  : "bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted"
-              }`}
-            >
-              {tab === "players" ? "Players" : "Challenge Board"}
-            </button>
-          ))}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-1.5">
+            {(["players", "challenges"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setLobbyTab(tab)}
+                className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border transition-colors ${
+                  lobbyTab === tab
+                    ? "bg-primary border-primary text-primary-foreground"
+                    : "bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                {tab === "players" ? "Players" : "Challenge Board"}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex-shrink-0"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span className="hidden sm:inline">Invite a friend</span>
+          </button>
         </div>
 
         {lobbyTab === "players" ? (
@@ -279,6 +292,15 @@ const Lobby = () => {
                 <p className="text-sm text-muted-foreground">
                   {searchQuery ? "Try a different nickName" : "Check back soon - the lobby fills up fast"}
                 </p>
+                {!searchQuery && (
+                  <button
+                    onClick={() => setShowInviteModal(true)}
+                    className="btn-primary mt-5 flex items-center gap-2"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Invite a friend to play
+                  </button>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-stretch justify-items-stretch [&>*]:min-w-0">
@@ -347,6 +369,10 @@ const Lobby = () => {
           />
         )}
       </main>
+
+      {showInviteModal && (
+        <InviteFriendModal onClose={() => setShowInviteModal(false)} />
+      )}
 
       {modalState === "challenge" && selectedPlayer && (
         <ChallengeModal

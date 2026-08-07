@@ -89,6 +89,23 @@ Once a challenge is accepted, both players drop into a synchronised match.
   also fails. No answer is silently lost.
 - **Forfeit flow** with confirmation, and a 10s "match didn't start" bailout back to the lobby
 
+### 🤝 Invite a friend
+
+Tokenized, trackable invite links sent straight from the lobby — the answer to an empty
+lobby, and the one place in the app that reaches people who don't have an account yet.
+
+- **Share anywhere** — WhatsApp, SMS, or copy-link, all built from one `POST /invite/create`
+- **Optional wager** — attach a category and a stake and the match **auto-starts** the
+  moment your friend joins; leave them off and it's a plain "come play with me" link
+- **Works for strangers to the platform** — the landing page resolves publicly, before
+  the recipient has any session, so they see *"QuizKing invited you"* with a live
+  online indicator before signing up
+- **Never hijacks the recipient** — a claimed invite lands on a choice screen
+  (*Play now* / *Not yet*), never a forced redirect into gameplay
+- **Survives the signup round trip** — the token is held through the auth bounce to
+  hallos.net, and a passive banner offers to resume it once onboarding is done
+- **Tracked and revocable** — a sent-invites panel with per-link click and join counts
+
 ### 📊 Results & sharing
 
 - Score card with correct/incorrect breakdown and per-question response times
@@ -239,7 +256,6 @@ stateDiagram-v2
 Every terminal state has a dedicated screen in
 [src/components/campaign/](src/components/campaign/) — pending, loading, results,
 expired, invalid, claimed, already-completed, not-logged-in, and generic error.
-Full protocol notes live in [campaign.md](campaign.md).
 
 ---
 
@@ -379,6 +395,7 @@ The dev server starts on **http://localhost:8080**.
 | `/identity` | Game Identity | App shell · nickname + avatar |
 | `/guide` | Guide | App shell · 3D flip-book walkthrough |
 | `/campaign/quiz?token=…` | Campaign quiz | Standalone, token-gated |
+| `/invite/:token` | Invite landing | Standalone. Token is a **path** param — `?token=` is reserved for the auth JWT |
 | `*` | Not found | |
 
 Routes under the app shell share the sidebar and top bar from
@@ -455,6 +472,22 @@ POST   /api/quiz/tournament/:id/unregister
 </details>
 
 <details>
+<summary><b>Invites</b> — <code>src/lib/api/invite.ts</code></summary>
+
+```
+POST   /api/quiz/invite/create              → inviteUrl + whatsappUrl + smsUri
+GET    /api/quiz/invite/resolve/:token      ← PUBLIC, no auth header
+POST   /api/quiz/invite/claim
+GET    /api/quiz/invite/mine?page&limit
+POST   /api/quiz/invite/:id/revoke
+```
+
+`resolve` runs through a separate interceptor-free axios instance — it is public, and a
+stale token must not be able to trigger the global 401 redirect and destroy the landing
+page before it renders.
+</details>
+
+<details>
 <summary><b>Campaign quiz</b> — <code>src/lib/api/campaignQuiz.ts</code></summary>
 
 ```
@@ -486,6 +519,7 @@ Defined in [src/lib/socket/events.ts](src/lib/socket/events.ts) and
 | Event | Meaning |
 |---|---|
 | `players_updated` | Online player count changed |
+| `quiz_invite_claimed` | A friend claimed your invite (live, or flushed on reconnect) |
 | `challenge_received` | Someone challenged you |
 | `challenge_accepted` | Match created — carries `matchId`, questions, opponent |
 | `challenge_declined` | Declined — carries `refundAmount` |
