@@ -77,6 +77,10 @@ const Lobby = () => {
     };
 
     const handleChallengeAccepted = (payload: import("@/lib/socket/events").ChallengeAcceptedPayload) => {
+      // Tournament knockout pairings are handled globally by TournamentWatcher
+      // (it needs to whisk the user into /game no matter which page they're
+      // on, not just while Lobby happens to be mounted).
+      if (payload.tournamentId) return;
       if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
       soundEngine.stopBellLoop();
       soundEngine.play("start_challenge");

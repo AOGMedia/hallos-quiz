@@ -6,7 +6,12 @@ import {
   getTournamentLeaderboard,
   registerForTournament,
   unregisterFromTournament,
+  forfeitTournament,
+  proposeTournament,
+  getMyTournaments,
+  getRoundDetail,
   type GetTournamentsParams,
+  type ProposeTournamentPayload,
 } from "@/lib/api/tournament";
 import { useChutaWalletStore } from "@/store/chutaWalletStore";
 import { useTournamentStore } from "@/store/tournamentStore";
@@ -16,6 +21,8 @@ export const TOURNAMENT_KEYS = {
   list:        (p: GetTournamentsParams) => ["tournaments", "list", p] as const,
   detail:      (id: string)             => ["tournaments", "detail", id] as const,
   leaderboard: (id: string)             => ["tournaments", "leaderboard", id] as const,
+  mine:        ()                       => ["tournaments", "mine"] as const,
+  round:       (id: string, n: number)  => ["tournaments", "round", id, n] as const,
 };
 
 export function useTournaments(params: GetTournamentsParams = {}) {
@@ -137,5 +144,42 @@ export function useUnregisterTournament(id: string) {
       qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.detail(id) });
       qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.list({}) });
     },
+  });
+}
+
+export function useForfeitTournament() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => forfeitTournament(id),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.detail(id) });
+      qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.mine() });
+    },
+  });
+}
+
+export function useProposeTournament() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ProposeTournamentPayload) => proposeTournament(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.mine() });
+    },
+  });
+}
+
+export function useMyTournaments() {
+  return useQuery({
+    queryKey: TOURNAMENT_KEYS.mine(),
+    queryFn: () => getMyTournaments(),
+    staleTime: 15_000,
+  });
+}
+
+export function useTournamentRound(tournamentId: string, roundNumber: number, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: TOURNAMENT_KEYS.round(tournamentId, roundNumber),
+    queryFn: () => getRoundDetail(tournamentId, roundNumber),
+    enabled: (options?.enabled ?? true) && !!tournamentId && roundNumber > 0,
   });
 }

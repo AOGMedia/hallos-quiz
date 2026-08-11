@@ -117,6 +117,9 @@ export interface ChallengeAcceptedPayload {
     nickname: string;
     avatarUrl: string;
   };
+  /** Present when this match is a tournament knockout pairing, not a 1v1 lobby challenge */
+  tournamentId?: string;
+  roundNumber?: number;
 }
 
 export interface ChallengeDeclinedPayload {
@@ -167,4 +170,168 @@ export const onMatchStateRestored = (cb: (data: ChallengeAcceptedPayload) => voi
 };
 export const offMatchStateRestored = (): void => {
   getSocket().off("match_state_restored");
+};
+
+// ── Tournament events ──────────────────────────────────────────────────────────
+// Knockout format reuses the match events above (challenge_accepted, answer_recorded,
+// match_ended) via real QuizMatch rows — these are only for classic/speed_run/battle_royale
+// (shared-question-set rounds) plus tournament-wide lifecycle notifications.
+
+export interface TournamentJoinedPayload {
+  tournamentId: string;
+  timestamp: number;
+}
+
+export const onTournamentJoined = (cb: (data: TournamentJoinedPayload) => void): void => {
+  getSocket().on("tournament_joined", cb);
+};
+export const offTournamentJoined = (): void => {
+  getSocket().off("tournament_joined");
+};
+
+export interface RoundQuestion {
+  id: string;
+  questionText: string;
+  options: Record<string, string>;
+  difficulty?: string;
+}
+
+export interface RoundStartedPayload {
+  tournamentId: string;
+  roundNumber: number;
+  format: "classic" | "speed_run" | "battle_royale" | "knockout";
+  questions?: RoundQuestion[]; // present for shared-question formats
+  matchCount?: number;        // present for knockout
+  byeUserId?: number | null;  // present for knockout
+  startTime?: string;
+}
+
+export const onRoundStarted = (cb: (data: RoundStartedPayload) => void): void => {
+  getSocket().on("round_started", cb);
+};
+export const offRoundStarted = (): void => {
+  getSocket().off("round_started");
+};
+
+export interface RoundResultEntry {
+  userId: number;
+  score: number;
+  completionTime: number | null;
+  rank: number | null;
+  matchId?: string;
+  bye?: boolean;
+}
+
+export interface RoundEndedPayload {
+  tournamentId: string;
+  roundNumber: number;
+  results: RoundResultEntry[];
+  timestamp: number;
+}
+
+export const onRoundEnded = (cb: (data: RoundEndedPayload) => void): void => {
+  getSocket().on("round_ended", cb);
+};
+export const offRoundEnded = (): void => {
+  getSocket().off("round_ended");
+};
+
+export interface TournamentStartedPayload {
+  tournamentId: string;
+  format: string;
+  participantCount: number;
+  totalRounds: number;
+  startTime: string;
+  timestamp: number;
+}
+
+export const onTournamentStarted = (cb: (data: TournamentStartedPayload) => void): void => {
+  getSocket().on("tournament_started", cb);
+};
+export const offTournamentStarted = (): void => {
+  getSocket().off("tournament_started");
+};
+
+export interface TournamentPlacement {
+  userId: number;
+  placement: number;
+  prizeWon: number;
+}
+
+export interface TournamentEndedPayload {
+  tournamentId: string;
+  winnerId: number | null;
+  placements: TournamentPlacement[];
+  timestamp: number;
+  // Direct-to-user variant (emitted to each placed participant individually)
+  placement?: number;
+  prizeWon?: number;
+}
+
+export const onTournamentEnded = (cb: (data: TournamentEndedPayload) => void): void => {
+  getSocket().on("tournament_ended", cb);
+};
+export const offTournamentEnded = (): void => {
+  getSocket().off("tournament_ended");
+};
+
+export interface ParticipantForfeitedPayload {
+  tournamentId: string;
+  userId: number;
+  reason?: string;
+  timestamp: number;
+}
+
+export const onParticipantForfeited = (cb: (data: ParticipantForfeitedPayload) => void): void => {
+  getSocket().on("participant_forfeited", cb);
+};
+export const offParticipantForfeited = (): void => {
+  getSocket().off("participant_forfeited");
+};
+
+export interface TournamentByePayload {
+  tournamentId: string;
+  roundNumber: number;
+}
+
+export const onTournamentBye = (cb: (data: TournamentByePayload) => void): void => {
+  getSocket().on("tournament_bye", cb);
+};
+export const offTournamentBye = (): void => {
+  getSocket().off("tournament_bye");
+};
+
+export interface TournamentAnswerRecordedPayload {
+  questionId: string;
+  success: boolean;
+  correct?: boolean;
+  correctAnswer?: string;
+  pointsEarned?: number;
+  responseTime?: number;
+}
+
+export const onTournamentAnswerRecorded = (cb: (data: TournamentAnswerRecordedPayload) => void): void => {
+  getSocket().on("tournament_answer_recorded", cb);
+};
+export const offTournamentAnswerRecorded = (): void => {
+  getSocket().off("tournament_answer_recorded");
+};
+
+export interface TournamentProposalReviewedPayload {
+  tournamentId: string;
+  reason?: string | null;
+}
+
+export const onTournamentProposalApproved = (cb: (data: TournamentProposalReviewedPayload) => void): void => {
+  getSocket().on("tournament_proposal_approved", cb);
+};
+export const offTournamentProposalApproved = (): void => {
+  getSocket().off("tournament_proposal_approved");
+};
+
+export const onTournamentProposalRejected = (cb: (data: TournamentProposalReviewedPayload) => void): void => {
+  getSocket().on("tournament_proposal_rejected", cb);
+};
+export const offTournamentProposalRejected = (): void => {
+  getSocket().off("tournament_proposal_rejected");
 };

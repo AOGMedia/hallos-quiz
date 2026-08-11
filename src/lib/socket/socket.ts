@@ -73,6 +73,19 @@ export const getSocket = (): Socket => {
         console.error("[socket] auto-rejoin error:", err);
       }
 
+      // Auto-rejoin the tournament room we were part of, same reasoning as
+      // the match rejoin above — round_started/round_ended are room
+      // broadcasts, so a missed reconnect means missing the next round.
+      try {
+        const tournamentId = sessionStorage.getItem("currentTournamentId");
+        if (tournamentId) {
+          console.log("[socket] auto-rejoining tournament:", tournamentId);
+          socket?.emit("join_tournament", { tournamentId });
+        }
+      } catch (err) {
+        console.error("[socket] tournament auto-rejoin error:", err);
+      }
+
       // Flush any queued answers
       flushAnswerQueue();
     });

@@ -16,6 +16,8 @@ import CampaignQuiz from "./pages/CampaignQuiz";
 import InviteLanding from "./pages/InviteLanding";
 import PendingInviteWatcher from "./components/invite/PendingInviteWatcher";
 import InviteNotifications from "./components/invite/InviteNotifications";
+import TournamentWatcher from "./components/tournament/TournamentWatcher";
+import TournamentGameplay from "./pages/TournamentGameplay";
 import NotFound from "./pages/NotFound";
 import { getToken } from "./store/authStore";
 
@@ -47,6 +49,7 @@ const App = () => (
         <Route path="/profile" element={<GuestOnlyRoute element={<ProfileSetup />} />} />
 
         <Route path="/game" element={<Gameplay />} />
+        <Route path="/tournament/play" element={<TournamentGameplay />} />
         <Route path="/campaign/quiz" element={<CampaignQuiz />} />
         {/* Invite token is a PATH param — never `?token=`, which main.tsx
             treats as the auth JWT and would overwrite the user's session.
@@ -67,9 +70,11 @@ const App = () => (
         <Route path="*" element={<NotFound />} />
       </Routes>
 
-      {/* Self-contained; both no-op without a JWT and never navigate on their own */}
+      {/* Self-contained; no-op without a JWT. PendingInviteWatcher/InviteNotifications
+          never navigate on their own; TournamentWatcher does (round/match start). */}
       <PendingInviteWatcher />
       <InviteNotifications />
+      <TournamentWatcher />
     </BrowserRouter>
   </TooltipProvider>
 );

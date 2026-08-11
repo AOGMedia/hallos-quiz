@@ -2,7 +2,14 @@ import apiClient from "./client";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type TournamentStatus = "open" | "in_progress" | "completed";
+export type TournamentStatus =
+  | "draft"
+  | "pending_review"
+  | "open"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+  | "rejected";
 export type TournamentFormat = "speed_run" | "classic" | "knockout" | "battle_royale";
 
 export const FORMAT_LABELS: Record<TournamentFormat, string> = {
@@ -34,13 +41,14 @@ export interface Tournament {
   prizeDistribution: PrizeDistribution;
   categoryId: string;
   categoryName: string;
-  maxParticipants: number;
+  maxParticipants: number | null; // null = unlimited
   currentParticipants: number;
   prizePool: number;
   registrationDeadline: string;
   startTime: string;
   status: TournamentStatus;
   createdBy: number;
+  proposedBy?: number | null;
 }
 
 export interface TournamentDetail extends Tournament {
@@ -89,12 +97,17 @@ export interface UnregisterResponse {
 
 export interface TournamentParticipant {
   userId: number;
-  username: string;
+  nickname: string;
+  avatarUrl: string | null;
   currentRound: number;
   totalScore: number;
-  averageTime: number;
-  status: "active" | "eliminated";
-  placement: number;
+  averageTime: number | null;
+  status: "registered" | "active" | "eliminated" | "winner";
+  /** Live 1-indexed standing — always present, updates every round */
+  rank: number;
+  /** Final placement — null until the tournament actually completes and pays out */
+  placement: number | null;
+  prizeWon: number;
 }
 
 export interface TournamentLeaderboardResponse {
@@ -102,6 +115,56 @@ export interface TournamentLeaderboardResponse {
   participants: TournamentParticipant[];
   currentRound: number;
   totalRounds: number;
+  status: TournamentStatus;
+}
+
+export interface ProposeTournamentPayload {
+  name: string;
+  description?: string;
+  format: TournamentFormat;
+  entryFee: number;
+  categoryId: string;
+  maxParticipants?: number;
+  minParticipants?: number;
+  registrationDeadline: string;
+  startTime: string;
+  prizeDistribution?: PrizeDistribution;
+}
+
+export interface ProposeTournamentResponse {
+  success: boolean;
+  tournamentId: string;
+  tournament: Tournament;
+}
+
+export interface MyTournamentParticipation {
+  tournamentId: string;
+  tournament: Tournament;
+  status: "registered" | "active" | "eliminated" | "winner";
+  currentRound: number;
+  totalScore: number;
+  placement: number | null;
+  prizeWon: number;
+  registeredAt: string;
+}
+
+export interface MyTournamentsResponse {
+  success: boolean;
+  participations: MyTournamentParticipation[];
+  proposals: Tournament[];
+}
+
+export interface RoundDetailResponse {
+  success: boolean;
+  round: {
+    roundNumber: number;
+    status: "pending" | "active" | "completed";
+    questions: Array<{ id: string; questionText: string; options: Record<string, string>; difficulty?: string }>;
+    participants: Array<{ userId: number; score: number; completionTime: number | null; rank: number | null; matchId?: string; bye?: boolean; answers?: string[] }>;
+    startedAt: string | null;
+    completedAt: string | null;
+  };
+  myEntry: { userId: number; score: number; completionTime: number | null; rank: number | null; answers?: string[] } | null;
 }
 
 // ── API functions ─────────────────────────────────────────────────────────────
@@ -132,11 +195,42 @@ export const unregisterFromTournament = async (id: string): Promise<UnregisterRe
   return res.data;
 };
 
+export interface ForfeitTournamentResponse {
+  success: boolean;
+}
+
+export const forfeitTournament = async (id: string): Promise<ForfeitTournamentResponse> => {
+  const res = await apiClient.post<ForfeitTournamentResponse>(`/api/quiz/tournament/${id}/forfeit`);
+  return res.data;
+};
+
 export const getTournamentLeaderboard = async (
   id: string
 ): Promise<TournamentLeaderboardResponse> => {
   const res = await apiClient.get<TournamentLeaderboardResponse>(
     `/api/quiz/tournament/${id}/leaderboard`
+  );
+  return res.data;
+};
+
+export const proposeTournament = async (
+  payload: ProposeTournamentPayload
+): Promise<ProposeTournamentResponse> => {
+  const res = await apiClient.post<ProposeTournamentResponse>("/api/quiz/tournament/propose", payload);
+  return res.data;
+};
+
+export const getMyTournaments = async (): Promise<MyTournamentsResponse> => {
+  const res = await apiClient.get<MyTournamentsResponse>("/api/quiz/tournament/mine");
+  return res.data;
+};
+
+export const getRoundDetail = async (
+  tournamentId: string,
+  roundNumber: number
+): Promise<RoundDetailResponse> => {
+  const res = await apiClient.get<RoundDetailResponse>(
+    `/api/quiz/tournament/${tournamentId}/round/${roundNumber}`
   );
   return res.data;
 };
