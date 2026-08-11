@@ -1,25 +1,69 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronDown, Upload, FileText, Download, Clock, Info } from "lucide-react";
+import { ChevronLeft, Info, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { categoryOptions } from "@/data/tournamentData";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCategories } from "@/hooks/useChallenge";
+import { useProposeTournament } from "@/hooks/useTournament";
+import { FORMAT_LABELS, type TournamentFormat } from "@/lib/api/tournament";
 
 interface HostTournamentProps {
   onBack: () => void;
 }
 
-const HostTournament = ({ onBack }: HostTournamentProps) => {
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState(categoryOptions[0]);
-  const [visibility, setVisibility] = useState<"public" | "private">("public");
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+const FORMATS: TournamentFormat[] = ["classic", "speed_run", "knockout", "battle_royale"];
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFileName(file.name);
-    }
+/** Local datetime-local input value -> ISO string */
+function toIso(localValue: string): string {
+  return localValue ? new Date(localValue).toISOString() : "";
+}
+
+const HostTournament = ({ onBack }: HostTournamentProps) => {
+  const { data: categoriesData, isLoading: categoriesLoading } = useCategories();
+  const { mutate: propose, isPending, isSuccess, isError, error, reset } = useProposeTournament();
+
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [format, setFormat] = useState<TournamentFormat>("classic");
+  const [categoryId, setCategoryId] = useState("");
+  const [entryFee, setEntryFee] = useState(100);
+  const [minParticipants, setMinParticipants] = useState(4);
+  const [maxParticipants, setMaxParticipants] = useState(50);
+  const [registrationDeadline, setRegistrationDeadline] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
+  const categories = categoriesData?.categories ?? [];
+
+  const validationError = (() => {
+    if (!name.trim()) return "Give your tournament a name";
+    if (!categoryId) return "Pick a category";
+    if (entryFee < 0) return "Entry fee can't be negative";
+    if (minParticipants < 2) return "Need at least 2 minimum participants";
+    if (maxParticipants < minParticipants) return "Max participants can't be less than the minimum";
+    if (!registrationDeadline) return "Set a registration deadline";
+    if (!startTime) return "Set a start time";
+    if (new Date(registrationDeadline) <= new Date()) return "Registration deadline must be in the future";
+    if (new Date(startTime) <= new Date(registrationDeadline)) return "Start time must be after the registration deadline";
+    return null;
+  })();
+
+  const handleSubmit = () => {
+    setHasAttemptedSubmit(true);
+    if (validationError) return;
+    reset();
+    propose({
+      name: name.trim(),
+      description: description.trim() || undefined,
+      format,
+      entryFee,
+      categoryId,
+      minParticipants,
+      maxParticipants,
+      registrationDeadline: toIso(registrationDeadline),
+      startTime: toIso(startTime),
+    });
   };
 
   return (
@@ -35,178 +79,152 @@ const HostTournament = ({ onBack }: HostTournamentProps) => {
           <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
         </Button>
         <div>
-          <h1 className="text-lg sm:text-2xl font-bold text-foreground">Host Tournament</h1>
-          <p className="text-xs sm:text-base text-muted-foreground">Organize competitive exams and academic tournaments</p>
+          <h1 className="text-lg sm:text-2xl font-bold text-foreground">Host a Tournament</h1>
+          <p className="text-xs sm:text-base text-muted-foreground">Propose an event — an admin reviews it before it goes live</p>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        {/* Tournament Configuration */}
-        <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
-          <div className="flex items-center gap-2 mb-4 sm:mb-6">
-            <span className="text-lg sm:text-xl">✏️</span>
-            <h2 className="text-base sm:text-lg font-semibold text-primary">Tournament Configuration</h2>
+      <div className="max-w-xl bg-card rounded-xl border border-border p-4 sm:p-6 space-y-4 sm:space-y-5">
+        <div>
+          <label className="block text-xs sm:text-sm text-foreground mb-1.5 sm:mb-2">Tournament title</label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Annual JAMB Mock 2026"
+            className="bg-background border-border text-foreground placeholder:text-muted-foreground text-sm sm:text-base"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs sm:text-sm text-foreground mb-1.5 sm:mb-2">Description (optional)</label>
+          <Textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What should players expect?"
+            className="bg-background border-border text-foreground placeholder:text-muted-foreground text-sm sm:text-base"
+            rows={3}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div>
+            <label className="block text-xs sm:text-sm text-foreground mb-1.5 sm:mb-2">Format</label>
+            <Select value={format} onValueChange={(v) => setFormat(v as TournamentFormat)}>
+              <SelectTrigger className="bg-background border-border text-sm sm:text-base">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FORMATS.map((f) => (
+                  <SelectItem key={f} value={f}>{FORMAT_LABELS[f]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Tournament Title */}
-          <div className="mb-4 sm:mb-6">
-            <label className="block text-xs sm:text-sm text-foreground mb-1.5 sm:mb-2">Tournament title</label>
+          <div>
+            <label className="block text-xs sm:text-sm text-foreground mb-1.5 sm:mb-2">Category</label>
+            <Select value={categoryId} onValueChange={setCategoryId} disabled={categoriesLoading}>
+              <SelectTrigger className="bg-background border-border text-sm sm:text-base">
+                <SelectValue placeholder={categoriesLoading ? "Loading…" : "Choose a category"} />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div>
+            <label className="block text-xs sm:text-sm text-foreground mb-1.5 sm:mb-2">Entry fee (MP)</label>
             <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g Annual JAMB Mock 2026"
-              className="bg-background border-border text-foreground placeholder:text-muted-foreground text-sm sm:text-base"
+              type="number"
+              min={0}
+              value={entryFee}
+              onChange={(e) => setEntryFee(Math.max(0, Number(e.target.value)))}
+              className="bg-background border-border text-foreground text-sm sm:text-base"
             />
           </div>
-
-          {/* Category & Visibility */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
-            <div>
-              <label className="block text-xs sm:text-sm text-foreground mb-1.5 sm:mb-2">Category</label>
-              <div className="relative">
-                <button
-                  onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                  className="w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 bg-background border border-border rounded-lg text-foreground text-sm sm:text-base"
-                >
-                  {category}
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-                {showCategoryDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10">
-                    {categoryOptions.map((opt) => (
-                      <button
-                        key={opt}
-                        onClick={() => {
-                          setCategory(opt);
-                          setShowCategoryDropdown(false);
-                        }}
-                        className="w-full px-3 sm:px-4 py-2 text-left hover:bg-muted text-foreground first:rounded-t-lg last:rounded-b-lg text-sm sm:text-base"
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs sm:text-sm text-foreground mb-1.5 sm:mb-2">Visibility</label>
-              <div className="flex gap-2">
-                <Button
-                  variant={visibility === "public" ? "default" : "outline"}
-                  onClick={() => setVisibility("public")}
-                  size="sm"
-                  className={`flex-1 text-xs sm:text-sm ${visibility === "public" 
-                    ? "bg-accent text-accent-foreground" 
-                    : "bg-background border-border"
-                  }`}
-                >
-                  Public
-                </Button>
-                <Button
-                  variant={visibility === "private" ? "default" : "outline"}
-                  onClick={() => setVisibility("private")}
-                  size="sm"
-                  className={`flex-1 text-xs sm:text-sm ${visibility === "private" 
-                    ? "bg-accent text-accent-foreground" 
-                    : "bg-background border-border"
-                  }`}
-                >
-                  Private
-                </Button>
-              </div>
-            </div>
+          <div>
+            <label className="block text-xs sm:text-sm text-foreground mb-1.5 sm:mb-2">Min players</label>
+            <Input
+              type="number"
+              min={2}
+              value={minParticipants}
+              onChange={(e) => setMinParticipants(Math.max(2, Number(e.target.value)))}
+              className="bg-background border-border text-foreground text-sm sm:text-base"
+            />
           </div>
-
-          {/* Review Process Info */}
-          <div className="bg-accent/10 border border-accent/30 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
-            <div className="flex gap-2 sm:gap-3">
-              <Info className="w-4 h-4 sm:w-5 sm:h-5 text-accent flex-shrink-0 mt-0.5" />
-              <div>
-                <h4 className="text-foreground font-medium mb-0.5 sm:mb-1 text-sm sm:text-base">Review Process</h4>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  To ensure question quality, all uploads are subject to human review. Verification 
-                  takes up to 24 hours before the tournament goes live.
-                </p>
-              </div>
-            </div>
+          <div>
+            <label className="block text-xs sm:text-sm text-foreground mb-1.5 sm:mb-2">Max players</label>
+            <Input
+              type="number"
+              min={minParticipants}
+              value={maxParticipants}
+              onChange={(e) => setMaxParticipants(Math.max(minParticipants, Number(e.target.value)))}
+              className="bg-background border-border text-foreground text-sm sm:text-base"
+            />
           </div>
-
-          {/* Submit Button */}
-          <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-sm sm:text-base">
-            <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
-            Submit for Review
-          </Button>
         </div>
 
-        {/* Upload Questions */}
-        <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
-          <div className="flex items-center gap-2 mb-4 sm:mb-6">
-            <span className="text-lg sm:text-xl">🔄</span>
-            <h2 className="text-base sm:text-lg font-semibold text-foreground">Upload Questions</h2>
-          </div>
-
-          {/* File Drop Zone */}
-          <div className="border-2 border-dashed border-border rounded-xl p-6 sm:p-8 mb-4 sm:mb-6 text-center hover:border-accent/50 transition-colors">
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleFileUpload}
-              className="hidden"
-              id="csv-upload"
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div>
+            <label className="block text-xs sm:text-sm text-foreground mb-1.5 sm:mb-2">Registration closes</label>
+            <Input
+              type="datetime-local"
+              value={registrationDeadline}
+              onChange={(e) => setRegistrationDeadline(e.target.value)}
+              className="bg-background border-border text-foreground text-sm sm:text-base"
             />
-            <label htmlFor="csv-upload" className="cursor-pointer">
-              <div className="flex flex-col items-center">
-                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-accent/10 flex items-center justify-center mb-3 sm:mb-4">
-                  <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-accent" />
-                </div>
-                <p className="text-foreground font-medium mb-1 text-sm sm:text-base">Drop your CSV here</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">or click to browse from your device</p>
-              </div>
-            </label>
           </div>
-
-          {/* Format Template */}
-          <div className="flex items-center justify-between bg-background rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground">FORMAT TEMPLATE</p>
-                <p className="text-xs sm:text-sm text-foreground truncate">Standard_questions_v2.pdf</p>
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" className="text-accent hover:text-accent/80 text-xs sm:text-sm flex-shrink-0">
-              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
-              <span className="hidden sm:inline">download</span>
-            </Button>
+          <div>
+            <label className="block text-xs sm:text-sm text-foreground mb-1.5 sm:mb-2">Tournament starts</label>
+            <Input
+              type="datetime-local"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="bg-background border-border text-foreground text-sm sm:text-base"
+            />
           </div>
+        </div>
 
-          {/* Submission Status */}
-          <div className="mb-3 sm:mb-4">
-            <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <span className="text-xs sm:text-sm text-foreground">Submission Status</span>
-              <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs bg-red-500/20 text-red-400 border border-red-500/30 rounded">
-                No File Detected
-              </span>
-            </div>
-          </div>
-
-          {/* 24-Hour Verification */}
-          <div className="bg-background rounded-lg p-3 sm:p-4">
-            <div className="flex gap-2 sm:gap-3">
-              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground flex-shrink-0" />
-              <div>
-                <h4 className="text-foreground font-medium mb-0.5 sm:mb-1 text-sm sm:text-base">24-Hour Verification</h4>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  Our academic board will check for accuracy and formatting once submitted
-                </p>
-              </div>
+        {/* Review Process Info */}
+        <div className="bg-accent/10 border border-accent/30 rounded-lg p-3 sm:p-4">
+          <div className="flex gap-2 sm:gap-3">
+            <Info className="w-4 h-4 sm:w-5 sm:h-5 text-accent flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-foreground font-medium mb-0.5 sm:mb-1 text-sm sm:text-base">Review Process</h4>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Your tournament goes to an admin for review before it's open for registration.
+                Questions are drawn from the category's existing question bank — no upload needed.
+                Prizes split 60/30/10 across the top 3 finishers by default.
+              </p>
             </div>
           </div>
         </div>
+
+        {isSuccess && (
+          <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl text-xs sm:text-sm">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            Proposal submitted! You'll be notified once an admin reviews it.
+          </div>
+        )}
+        {(isError || (hasAttemptedSubmit && validationError)) && (
+          <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs sm:text-sm">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {isError ? (error as Error)?.message : validationError}
+          </div>
+        )}
+
+        <Button
+          onClick={handleSubmit}
+          disabled={isPending}
+          className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-sm sm:text-base disabled:opacity-50"
+        >
+          {isPending ? "Submitting…" : "Submit for Review"}
+        </Button>
       </div>
     </div>
   );

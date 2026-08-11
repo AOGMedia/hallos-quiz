@@ -18,6 +18,7 @@ import { attachMatchEvents, detachMatchEvents } from "@/lib/socket/events";
 import { getSocket, onConnectionChange } from "@/lib/socket/socket";
 import { getMatch } from "@/lib/api/lobby";
 import type { MatchQuestion } from "@/lib/api/lobby";
+import { useTournamentStore } from "@/store/tournamentStore";
 import type { GameResult } from "@/data/quizData";
 
 type GameState = "intro" | "playing" | "results";
@@ -79,6 +80,12 @@ const Gameplay = () => {
   const player2 = match?.player2 ?? { name: "Opponent", avatar: avatars[1] };
   const matchId = match?.matchId as string | undefined;
 
+  // Tournament knockout matches carry these — same match/gameplay mechanic,
+  // just a different "where do I go when it's over" destination.
+  const tournamentId = match?.tournamentId as string | undefined;
+  const isTournamentMatch = !!tournamentId;
+  const returnPath = isTournamentMatch ? "/tournament" : "/lobby";
+
   // Build questions from real match data, fall back to empty
   const rawQuestions: MatchQuestion[] = match?.questions ?? [];
   const [questions, setQuestions] = useState<ActiveQuestion[]>(
@@ -109,7 +116,7 @@ const Gameplay = () => {
   }, [matchId]); // eslint-disable-line react-hooks/exhaustive-deps
   const finalScores = match?.finalScores as { p1: number; p2: number; winnerId: string | number } | undefined;
   useEffect(() => {
-    if (!matchRaw) { navigate("/lobby", { replace: true }); return; }
+    if (!matchRaw) { navigate(returnPath, { replace: true }); return; }
     if (sessionStorage.getItem("matchEnded") === "true") {
       if (finalScores) {
         // Restore results state from stored scores
@@ -119,7 +126,7 @@ const Gameplay = () => {
         setGameState("results");
       } else {
         sessionStorage.removeItem("matchEnded");
-        navigate("/lobby", { replace: true });
+        navigate(returnPath, { replace: true });
       }
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -479,7 +486,7 @@ const Gameplay = () => {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 sm:w-96 h-32 sm:h-48 bg-gradient-radial from-primary/30 to-transparent blur-3xl" />
         <header className="flex items-center justify-center gap-2 text-primary py-4 sm:py-6">
           <Swords className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="text-xs sm:text-sm font-medium">Friendly Challenge</span>
+          <span className="text-xs sm:text-sm font-medium">{isTournamentMatch ? "Tournament Match" : "Friendly Challenge"}</span>
         </header>
         <main className="flex-1 flex flex-col items-center justify-start sm:justify-center px-4 sm:px-6 pb-6 max-w-2xl mx-auto w-full">
           <ResultsHeader isVictory={isVictory} />
@@ -494,10 +501,15 @@ const Gameplay = () => {
           <div className="w-full">
             <ResultsActions
               onShareResults={() => setIsShareModalOpen(true)}
+              returnLabel={isTournamentMatch ? "Back to Tournament" : "Return to Lobby"}
               onReturnToLobby={() => {
                 sessionStorage.removeItem("currentMatch");
                 sessionStorage.removeItem("matchEnded");
-                navigate("/lobby");
+                if (isTournamentMatch && tournamentId) {
+                  useTournamentStore.getState().selectTournament(tournamentId);
+                  useTournamentStore.getState().setView("leaderboard");
+                }
+                navigate(returnPath);
               }}
             />
           </div>
@@ -518,7 +530,7 @@ const Gameplay = () => {
       <LoadingFallback onBackToLobby={() => {
         sessionStorage.removeItem("currentMatch");
         sessionStorage.removeItem("matchEnded");
-        navigate("/lobby", { replace: true });
+        navigate(returnPath, { replace: true });
       }} />
     );
   }
@@ -581,12 +593,12 @@ const Gameplay = () => {
           onConfirm={() => {
             if (matchId) {
               forfeit(matchId, {
-                onSuccess: () => { sessionStorage.removeItem("currentMatch"); navigate("/lobby"); },
-                onError: () => { sessionStorage.removeItem("currentMatch"); navigate("/lobby"); },
+                onSuccess: () => { sessionStorage.removeItem("currentMatch"); navigate(returnPath); },
+                onError: () => { sessionStorage.removeItem("currentMatch"); navigate(returnPath); },
               });
             } else {
               sessionStorage.removeItem("currentMatch");
-              navigate("/lobby");
+              navigate(returnPath);
             }
           }}
           onCancel={() => setShowForfeit(false)}

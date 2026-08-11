@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { ChevronLeft, Zap, Users, Clock, Trophy, AlertCircle, CheckCircle2, BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FormatBadge from "./FormatBadge";
 import { useTournamentDetail, useRegisterTournament, useUnregisterTournament } from "@/hooks/useTournament";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { FORMAT_LABELS } from "@/lib/api/tournament";
+import { joinTournament } from "@/lib/socket/tournamentEmitters";
 
 interface TournamentDetailViewProps {
   tournamentId: string;
@@ -25,6 +27,16 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
   const registered = useTournamentStore((s) => s.isRegistered(tournamentId));
 
   const t = data?.tournament;
+
+  // Join the tournament's socket room so round_started/round_ended broadcasts
+  // (shared-question formats) and the live leaderboard reach us while an
+  // in-progress tournament is on screen. Also remembered for auto-rejoin on
+  // reconnect — see socket.ts.
+  useEffect(() => {
+    if (!t || t.status !== "in_progress") return;
+    sessionStorage.setItem("currentTournamentId", t.id);
+    joinTournament(t.id);
+  }, [t]);
 
   const handleRegister = () => {
     registerMutation.mutate(undefined);

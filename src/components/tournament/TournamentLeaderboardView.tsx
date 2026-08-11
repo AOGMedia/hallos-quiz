@@ -64,18 +64,22 @@ const TournamentLeaderboardView = ({
               key={p.userId}
               className={`grid grid-cols-[40px_1fr_70px_70px_60px] gap-2 items-center px-3 sm:px-4 py-3 transition-colors hover:bg-muted/50 ${
                 i < data.participants.length - 1 ? "border-b border-border" : ""
-              } ${p.placement <= 3 ? "bg-primary/5" : ""}`}
+              } ${p.rank <= 3 ? "bg-primary/5" : ""}`}
             >
               <div className="flex items-center justify-center">
-                <RankBadge rank={p.placement} />
+                <RankBadge rank={p.rank} />
               </div>
 
               <div className="flex items-center gap-2 min-w-0">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
-                  {p.username.charAt(0).toUpperCase()}
-                </div>
+                {p.avatarUrl ? (
+                  <img src={p.avatarUrl} alt={p.nickname} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex-shrink-0" />
+                ) : (
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
+                    {p.nickname.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-foreground truncate">{p.username}</p>
+                  <p className="text-xs sm:text-sm font-medium text-foreground truncate">{p.nickname}</p>
                   <p className="text-[10px] text-muted-foreground">Round {p.currentRound}</p>
                 </div>
               </div>
@@ -88,13 +92,13 @@ const TournamentLeaderboardView = ({
               <div className="hidden sm:flex items-center justify-end gap-1">
                 <Clock className="w-3 h-3 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">
-                  {(p.averageTime / 1000).toFixed(1)}s
+                  {p.averageTime != null ? `${p.averageTime.toFixed(1)}s` : "—"}
                 </span>
               </div>
 
               <div className="flex justify-end">
                 <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                  p.status === "active"
+                  p.status === "active" || p.status === "winner"
                     ? "bg-green-500/20 text-green-400"
                     : "bg-red-500/20 text-red-400"
                 }`}>

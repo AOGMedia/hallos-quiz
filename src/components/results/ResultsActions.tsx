@@ -3,9 +3,10 @@ import { Swords, Share2 } from "lucide-react";
 interface ResultsActionsProps {
   onShareResults: () => void;
   onReturnToLobby: () => void;
+  returnLabel?: string;
 }
 
-const ResultsActions = ({ onShareResults, onReturnToLobby }: ResultsActionsProps) => {
+const ResultsActions = ({ onShareResults, onReturnToLobby, returnLabel = "Return to Lobby" }: ResultsActionsProps) => {
   return (
     <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
       <button
@@ -21,7 +22,7 @@ const ResultsActions = ({ onShareResults, onReturnToLobby }: ResultsActionsProps
         className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-xl py-3 sm:py-4 hover:bg-primary/90 transition-colors"
       >
         <Swords className="w-4 h-4" />
-        <span className="text-xs sm:text-sm font-medium">Return to Lobby</span>
+        <span className="text-xs sm:text-sm font-medium">{returnLabel}</span>
       </button>
     </div>
   );
