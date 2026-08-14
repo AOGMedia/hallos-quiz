@@ -97,7 +97,7 @@ const ProfileSetup = () => {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Setup your game identity</h1>
             <p className="text-muted-foreground mt-1 text-sm">
-              Pick a nickname and avatar — you'll get <span className="text-primary font-medium">100 CP free</span>
+              Pick a nickname and avatar — you'll get <span className="text-primary font-medium">100 MP free</span>
             </p>
           </div>
 

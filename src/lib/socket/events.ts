@@ -203,6 +203,9 @@ export interface RoundStartedPayload {
   questions?: RoundQuestion[]; // present for shared-question formats
   matchCount?: number;        // present for knockout
   byeUserId?: number | null;  // present for knockout
+  /** Seconds per question, authoritative — the server scores against this window */
+  timeLimit?: number;
+  totalQuestions?: number;
   startTime?: string;
 }
 
@@ -335,3 +338,70 @@ export const onTournamentProposalRejected = (cb: (data: TournamentProposalReview
 export const offTournamentProposalRejected = (): void => {
   getSocket().off("tournament_proposal_rejected");
 };
+
+// ── Scoped subscriptions ──────────────────────────────────────────────────────
+// The on*/off* pairs above detach by event name, which removes *every* listener
+// for that event — fine while each has a single consumer, silently destructive
+// as soon as a second one appears. Everything below returns an unsubscribe that
+// removes only its own handler; prefer these for new subscriptions.
+
+export interface ParticipantEliminatedPayload {
+  tournamentId: string;
+  userId: number;
+  roundNumber: number;
+  /** 'did_not_qualify' (missed the cut) | 'bottom_tier' (battle royale cull) */
+  reason?: string;
+}
+
+/**
+ * Fired when a participant is knocked out. Delivered both as a room broadcast
+ * (so standings refresh for everyone) and directly to the eliminated player —
+ * the direct send is queued through a reconnect, so it can arrive twice. Keep
+ * the handler idempotent.
+ */
+export const onParticipantEliminated = (
+  cb: (data: ParticipantEliminatedPayload) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("participant_eliminated", cb);
+  return () => { socket.off("participant_eliminated", cb); };
+};
+
+export interface TournamentStateRestoredPayload {
+  tournamentId: string;
+  message?: string;
+}
+
+/**
+ * Sent after a reconnect puts us back in a tournament room. It carries no round
+ * state, so treat it as a signal to re-fetch round detail rather than a payload
+ * to render.
+ */
+export const onTournamentStateRestored = (
+  cb: (data: TournamentStateRestoredPayload) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("tournament_state_restored", cb);
+  return () => { socket.off("tournament_state_restored", cb); };
+};
+
+export interface ParticipantDisconnectedPayload {
+  tournamentId: string;
+  userId: number;
+  timestamp?: number;
+}
+
+export const onRoundEndedScoped = (cb: (data: RoundEndedPayload) => void): (() => void) => {
+  const socket = getSocket();
+  socket.on("round_ended", cb);
+  return () => { socket.off("round_ended", cb); };
+};
+
+export const onTournamentAnswerRecordedScoped = (
+  cb: (data: TournamentAnswerRecordedPayload) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("tournament_answer_recorded", cb);
+  return () => { socket.off("tournament_answer_recorded", cb); };
+};
+

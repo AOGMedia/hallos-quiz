@@ -16,8 +16,13 @@ function timeUntil(iso: string): string {
 }
 
 const TournamentCard = ({ tournament, onSelect }: TournamentCardProps) => {
-  const isFull = tournament.currentParticipants >= tournament.maxParticipants;
-  const fillPct = Math.round((tournament.currentParticipants / tournament.maxParticipants) * 100);
+  // maxParticipants is null for uncapped tournaments — comparing against null
+  // would read as `>= 0` and mark every one of them full.
+  const cap = tournament.maxParticipants;
+  const isFull = cap != null && tournament.currentParticipants >= cap;
+  const fillPct = cap != null && cap > 0
+    ? Math.min(100, Math.round((tournament.currentParticipants / cap) * 100))
+    : 0;
 
   return (
     <div
@@ -54,9 +59,9 @@ const TournamentCard = ({ tournament, onSelect }: TournamentCardProps) => {
         <div className="flex items-center justify-between mb-1">
           <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
             <Users className="w-3 h-3" />
-            {tournament.currentParticipants}/{tournament.maxParticipants}
+            {tournament.currentParticipants}{cap != null ? `/${cap}` : ""}
           </span>
-          <span className="text-[10px] text-muted-foreground">{fillPct}%</span>
+          {cap != null && <span className="text-[10px] text-muted-foreground">{fillPct}%</span>}
         </div>
         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
           <div

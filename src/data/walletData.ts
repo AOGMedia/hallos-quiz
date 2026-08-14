@@ -13,8 +13,8 @@ export interface PurchasePackage {
 // Human-readable labels for each transaction type
 export const TX_LABELS: Record<TransactionType, string> = {
   initial_bonus:     "Welcome bonus",
-  purchase:          "CP purchase",
-  withdrawal:        "CP withdrawal",
+  purchase:          "MP purchase",
+  withdrawal:        "MP withdrawal",
   match_wager:       "Match wager",
   match_win:         "Match win",
   match_refund:      "Match refund",

@@ -88,6 +88,7 @@ export const getSocket = (): Socket => {
 
       // Flush any queued answers
       flushAnswerQueue();
+      flushTournamentAnswerQueue();
     });
 
     socket.on("connect_error", (err) => {
@@ -152,6 +153,43 @@ export const getAnswerQueueLength = () => answerQueue.length;
 /** Get and drain the queue (for REST fallback) */
 export const drainAnswerQueue = (): QueuedAnswer[] => {
   return answerQueue.splice(0, answerQueue.length);
+};
+
+// ── Offline Tournament Answer Queue ──────────────────────────────────────────
+// Same contract as the match queue above, for shared-question tournament
+// rounds. Kept here rather than in tournamentEmitters so the reconnect handler
+// can flush it without importing back into that module.
+
+interface QueuedTournamentAnswer {
+  tournamentId: string;
+  roundNumber: number;
+  questionId: string;
+  answerId: string;
+  clientTimestamp: number;
+  queuedAt: number;
+}
+
+const tournamentAnswerQueue: QueuedTournamentAnswer[] = [];
+
+export const queueTournamentAnswer = (payload: QueuedTournamentAnswer) => {
+  tournamentAnswerQueue.push(payload);
+  console.log(`[socket] tournament answer queued (${tournamentAnswerQueue.length} pending)`);
+};
+
+export const drainTournamentAnswerQueue = (): QueuedTournamentAnswer[] => {
+  return tournamentAnswerQueue.splice(0, tournamentAnswerQueue.length);
+};
+
+export const flushTournamentAnswerQueue = () => {
+  if (tournamentAnswerQueue.length === 0) return;
+  const s = socket;
+  if (!s?.connected) return;
+
+  console.log(`[socket] flushing ${tournamentAnswerQueue.length} queued tournament answers`);
+  while (tournamentAnswerQueue.length > 0) {
+    const item = tournamentAnswerQueue.shift()!;
+    s.emit("submit_tournament_answer", item);
+  }
 };
 
 /** Call on logout / session end */
