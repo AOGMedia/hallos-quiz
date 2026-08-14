@@ -25,7 +25,7 @@ const MORGAN_GUIDE_PAGES = [
   {
     title: "3. Buying MP",
     subtitle: "Refill your reserves",
-    text: "Navigate to 'Chuta Wallet' and click 'Purchase'. You can instantly transfer funds from your Hallos Wallet. Minimum purchase is 100 MP (₦1,400).",
+    text: "Navigate to 'Morgan Wallet' and click 'Purchase'. You can instantly transfer funds from your Hallos Wallet. Minimum purchase is 100 MP (₦1,400).",
     icon: <Wallet className="w-8 h-8 text-accent" />
   },
   {

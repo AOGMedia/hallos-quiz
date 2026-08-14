@@ -20,10 +20,24 @@ function resultLabel(placement: number | null, status: string): string {
   return placement ? `#${placement}` : "—";
 }
 
+/** Label + colour for a proposal's review state */
+function proposalStatus(status: string): { label: string; tone: string } {
+  switch (status) {
+    case "pending_review": return { label: "Awaiting review", tone: "text-warning" };
+    case "rejected":       return { label: "Declined",        tone: "text-destructive" };
+    case "open":           return { label: "Approved · open", tone: "text-green-400" };
+    case "in_progress":    return { label: "Running",         tone: "text-accent" };
+    case "completed":      return { label: "Completed",       tone: "text-muted-foreground" };
+    case "cancelled":      return { label: "Cancelled",       tone: "text-muted-foreground" };
+    default:               return { label: status,            tone: "text-foreground" };
+  }
+}
+
 const TournamentHistory = ({ onBack }: TournamentHistoryProps) => {
   const { data, isLoading } = useMyTournaments();
 
   const participations = data?.participations ?? [];
+  const proposals = data?.proposals ?? [];
   const completed = participations.filter((p) => p.tournament.status === "completed");
   const wins = completed.filter((p) => p.placement === 1).length;
   const top3 = completed.filter((p) => p.placement != null && p.placement <= 3).length;
@@ -102,7 +116,7 @@ const TournamentHistory = ({ onBack }: TournamentHistoryProps) => {
                 <span className="text-2xl sm:text-4xl font-bold text-foreground">{participations.length}</span>
               </div>
               <p className="text-muted-foreground text-xs sm:text-sm mt-1 sm:mt-2">
-                {data?.proposals.length ?? 0} tournaments you've proposed
+                {proposals.length} tournaments you've proposed
               </p>
             </div>
           </div>
@@ -167,6 +181,62 @@ const TournamentHistory = ({ onBack }: TournamentHistoryProps) => {
               </div>
             )}
           </div>
+
+          {/* Proposals — the only place a user can see whether the tournament
+              they proposed was approved or declined, and why. */}
+          {proposals.length > 0 && (
+            <div className="bg-card rounded-xl border border-border overflow-hidden mt-4 sm:mt-6">
+              <div className="p-3 sm:p-4 border-b border-border">
+                <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                  Tournaments You've Proposed
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px]">
+                  <thead>
+                    <tr className="border-b border-border text-muted-foreground text-[10px] sm:text-xs uppercase tracking-wider">
+                      <th className="text-left p-2 sm:p-4">Tournament Name</th>
+                      <th className="text-left p-2 sm:p-4">Format</th>
+                      <th className="text-left p-2 sm:p-4">Entry</th>
+                      <th className="text-left p-2 sm:p-4">Starts</th>
+                      <th className="text-right p-2 sm:p-4">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {proposals.map((p) => {
+                      const { label, tone } = proposalStatus(p.status);
+                      return (
+                        <tr key={p.id} className="border-b border-border last:border-b-0 hover:bg-muted/50">
+                          <td className="p-2 sm:p-4">
+                            <span className="font-medium text-foreground text-xs sm:text-base">{p.name}</span>
+                            {p.status === "rejected" && p.rejectionReason && (
+                              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+                                {p.rejectionReason}
+                              </p>
+                            )}
+                          </td>
+                          <td className="p-2 sm:p-4">
+                            <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded whitespace-nowrap ${FORMAT_COLORS[p.format]}`}>
+                              {FORMAT_LABELS[p.format]}
+                            </span>
+                          </td>
+                          <td className="p-2 sm:p-4 text-foreground text-xs sm:text-base whitespace-nowrap">
+                            {p.entryFee} MP
+                          </td>
+                          <td className="p-2 sm:p-4 text-muted-foreground text-xs sm:text-base whitespace-nowrap">
+                            {fmtDate(p.startTime)}
+                          </td>
+                          <td className="p-2 sm:p-4 text-right">
+                            <span className={`text-xs sm:text-base whitespace-nowrap ${tone}`}>{label}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

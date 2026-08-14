@@ -85,8 +85,15 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
               {[
                 { label: "Entry Fee",   value: `${t.entryFee} MP`,              icon: Zap,      color: "text-warning" },
                 { label: "Prize Pool",  value: `${t.prizePool.toLocaleString()} MP`, icon: Trophy, color: "text-yellow-400" },
-                { label: "Players",     value: `${data.participantCount}/${t.maxParticipants}`, icon: Users, color: "text-primary" },
-                { label: "Rounds",      value: `${t.totalRounds} rounds`,        icon: BarChart2, color: "text-accent" },
+                { label: "Players",     value: t.maxParticipants ? `${data.participantCount}/${t.maxParticipants}` : `${data.participantCount}`, icon: Users, color: "text-primary" },
+                {
+                  label: t.status === "in_progress" ? "Progress" : "Rounds",
+                  value: t.status === "in_progress"
+                    ? `Round ${t.currentRound || 1}/${t.totalRounds}`
+                    : `${t.totalRounds} rounds`,
+                  icon: BarChart2,
+                  color: "text-accent",
+                },
               ].map(({ label, value, icon: Icon, color }) => (
                 <div key={label} className="bg-secondary rounded-xl p-3 text-center">
                   <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
@@ -138,6 +145,55 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
               <span className="text-muted-foreground">Format</span>
               <span className="text-foreground font-medium">{FORMAT_LABELS[t.format]}</span>
             </div>
+            {/* The lifecycle sweep cancels and refunds under-filled tournaments,
+                so entrants need to see the threshold they're betting on. */}
+            <div className="flex items-center justify-between text-xs sm:text-sm">
+              <span className="text-muted-foreground">Minimum players</span>
+              <span className="text-foreground font-medium">
+                {t.minParticipants}
+                {t.status === "open" && data.participantCount < t.minParticipants && (
+                  <span className="text-warning ml-1.5">
+                    ({t.minParticipants - data.participantCount} more needed)
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+
+          {/* Entrants — hidden by the server until the tournament starts */}
+          <div className="bg-card border border-border rounded-xl p-4 sm:p-5">
+            <h3 className="text-xs sm:text-sm font-semibold text-foreground uppercase tracking-wider mb-3">
+              Entrants ({data.participantCount})
+            </h3>
+            {data.participantsHidden ? (
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 flex-shrink-0" />
+                The entrant list stays private until the tournament starts.
+              </p>
+            ) : t.participants.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No one has registered yet.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {t.participants.map((p) => (
+                  <div
+                    key={p.userId}
+                    className="flex items-center gap-2 bg-secondary rounded-lg pl-1.5 pr-2.5 py-1.5"
+                  >
+                    {p.avatarUrl ? (
+                      <img src={p.avatarUrl} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary flex-shrink-0">
+                        {(p.nickname ?? "?").charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="text-xs text-foreground">{p.nickname ?? `Player ${p.userId}`}</span>
+                    {p.status === "eliminated" && (
+                      <span className="text-[10px] text-destructive">out</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Feedback */}
@@ -171,7 +227,10 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
             {t.status === "open" && !registered && (
               <Button
                 onClick={handleRegister}
-                disabled={registerMutation.isPending || data.participantCount >= t.maxParticipants}
+                disabled={
+                  registerMutation.isPending ||
+                  (t.maxParticipants != null && data.participantCount >= t.maxParticipants)
+                }
                 className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground text-sm disabled:opacity-40"
               >
                 {registerMutation.isPending ? "Registering…" : `Register · ${t.entryFee} MP`}

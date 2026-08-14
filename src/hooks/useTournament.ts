@@ -15,13 +15,12 @@ import {
 } from "@/lib/api/tournament";
 import { useChutaWalletStore } from "@/store/chutaWalletStore";
 import { useTournamentStore } from "@/store/tournamentStore";
-import { isSampleTournament, getSampleTournamentDetail } from "@/data/tournamentData";
 
 export const TOURNAMENT_KEYS = {
   list:        (p: GetTournamentsParams) => ["tournaments", "list", p] as const,
   detail:      (id: string)             => ["tournaments", "detail", id] as const,
   leaderboard: (id: string)             => ["tournaments", "leaderboard", id] as const,
-  mine:        ()                       => ["tournaments", "mine"] as const,
+  mine:        (page: number)           => ["tournaments", "mine", page] as const,
   round:       (id: string, n: number)  => ["tournaments", "round", id, n] as const,
 };
 
@@ -46,25 +45,9 @@ export function useTournamentDetail(id: string) {
 
   const query = useQuery({
     queryKey: TOURNAMENT_KEYS.detail(id),
-    queryFn: async () => {
-      // Try server first — if it succeeds, use real data
-      try {
-        return await getTournamentDetail(id);
-      } catch {
-        // If the tournament is a sample, return local mock data
-        const sample = getSampleTournamentDetail(id);
-        if (sample) return sample;
-        // Otherwise re-throw so React Query treats it as an error
-        throw new Error("Tournament not found");
-      }
-    },
+    queryFn: () => getTournamentDetail(id),
     enabled: !!id,
     staleTime: 30_000,
-    retry: (failureCount, error) => {
-      // Don't retry for sample tournaments (the fallback already handled it)
-      if (isSampleTournament(id)) return false;
-      return failureCount < 2;
-    },
   });
 
   useEffect(() => {
@@ -87,31 +70,16 @@ export function useTournamentLeaderboard(id: string) {
 export function useRegisterTournament(id: string) {
   const qc = useQueryClient();
   const setBalance = useChutaWalletStore((s) => s.setBalance);
-  const getBalance = useChutaWalletStore((s) => s.balance);
   const markRegistered = useTournamentStore((s) => s.markRegistered);
 
   return useMutation({
-    mutationFn: async () => {
-      // For sample tournaments, simulate registration locally
-      if (isSampleTournament(id)) {
-        const sample = getSampleTournamentDetail(id);
-        const fee = sample?.tournament.entryFee ?? 0;
-        const newBalance = Math.max(0, getBalance - fee);
-        return {
-          success: true,
-          entryFeePaid: fee,
-          registrationId: `sample-reg-${Date.now()}`,
-          newBalance,
-          message: "Registered successfully (sample)",
-        };
-      }
-      return registerForTournament(id);
-    },
+    mutationFn: () => registerForTournament(id),
     onSuccess: (data) => {
       setBalance(data.newBalance);
       markRegistered(id);
       qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.detail(id) });
-      qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.list({}) });
+      qc.invalidateQueries({ queryKey: ["tournaments", "list"] });
+      qc.invalidateQueries({ queryKey: ["tournaments", "mine"] });
     },
   });
 }
@@ -119,30 +87,16 @@ export function useRegisterTournament(id: string) {
 export function useUnregisterTournament(id: string) {
   const qc = useQueryClient();
   const setBalance = useChutaWalletStore((s) => s.setBalance);
-  const getBalance = useChutaWalletStore((s) => s.balance);
   const markUnregistered = useTournamentStore((s) => s.markUnregistered);
 
   return useMutation({
-    mutationFn: async () => {
-      // For sample tournaments, simulate unregistration locally
-      if (isSampleTournament(id)) {
-        const sample = getSampleTournamentDetail(id);
-        const refund = sample?.tournament.entryFee ?? 0;
-        const newBalance = getBalance + refund;
-        return {
-          success: true,
-          refundAmount: refund,
-          newBalance,
-          message: "Unregistered successfully (sample)",
-        };
-      }
-      return unregisterFromTournament(id);
-    },
+    mutationFn: () => unregisterFromTournament(id),
     onSuccess: (data) => {
       setBalance(data.newBalance);
       markUnregistered(id);
       qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.detail(id) });
-      qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.list({}) });
+      qc.invalidateQueries({ queryKey: ["tournaments", "list"] });
+      qc.invalidateQueries({ queryKey: ["tournaments", "mine"] });
     },
   });
 }
@@ -153,7 +107,8 @@ export function useForfeitTournament() {
     mutationFn: (id: string) => forfeitTournament(id),
     onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.detail(id) });
-      qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.mine() });
+      qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.leaderboard(id) });
+      qc.invalidateQueries({ queryKey: ["tournaments", "mine"] });
     },
   });
 }
@@ -163,23 +118,36 @@ export function useProposeTournament() {
   return useMutation({
     mutationFn: (payload: ProposeTournamentPayload) => proposeTournament(payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.mine() });
+      qc.invalidateQueries({ queryKey: ["tournaments", "mine"] });
     },
   });
 }
 
-export function useMyTournaments() {
+export function useMyTournaments(page = 1, limit = 20) {
   return useQuery({
-    queryKey: TOURNAMENT_KEYS.mine(),
-    queryFn: () => getMyTournaments(),
+    queryKey: TOURNAMENT_KEYS.mine(page),
+    queryFn: () => getMyTournaments(page, limit),
     staleTime: 15_000,
   });
 }
 
-export function useTournamentRound(tournamentId: string, roundNumber: number, options?: { enabled?: boolean }) {
+/**
+ * Round detail — questions, standings, and `myEntry.answers`, the list of
+ * questions this participant has already answered. That last field is what
+ * lets gameplay resume mid-round after a refresh or reconnect instead of
+ * restarting from question one and colliding with answers the server has
+ * already recorded.
+ */
+export function useTournamentRound(
+  tournamentId: string,
+  roundNumber: number,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: TOURNAMENT_KEYS.round(tournamentId, roundNumber),
     queryFn: () => getRoundDetail(tournamentId, roundNumber),
     enabled: (options?.enabled ?? true) && !!tournamentId && roundNumber > 0,
+    staleTime: 0,
+    gcTime: 0,
   });
 }

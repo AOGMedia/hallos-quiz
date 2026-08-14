@@ -17,7 +17,7 @@ const Sidebar = ({ activeItem, onNavigate, onExit }: SidebarProps) => {
     { id: "lobby", label: "Lobby", icon: Home },
     { id: "tournament", label: "Tournament", icon: Trophy },
     { id: "leaderboard", label: "Leaderboard", icon: BarChart3 },
-    { id: "cashout", label: "Chuta Wallet", icon: Wallet },
+    { id: "cashout", label: "Morgan Wallet", icon: Wallet },
     { id: "identity", label: "Game Identity", icon: User },
     { id: "guide", label: "Guide", icon: HelpCircle },
   ];

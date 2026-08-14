@@ -49,13 +49,27 @@ export interface Tournament {
   status: TournamentStatus;
   createdBy: number;
   proposedBy?: number | null;
+  /** Set once an admin reviews a user-hosted proposal */
+  reviewedAt?: string | null;
+  rejectionReason?: string | null;
+}
+
+/** A registered entrant, as returned on the tournament detail payload */
+export interface TournamentDetailParticipant {
+  userId: number;
+  nickname?: string | null;
+  avatarUrl?: string | null;
+  status: "registered" | "active" | "eliminated" | "winner";
+  currentRound?: number;
+  totalScore?: number;
 }
 
 export interface TournamentDetail extends Tournament {
   minParticipants: number;
   currentRound: number;
   totalRounds: number;
-  participants: unknown[];
+  /** Empty until the tournament starts — see `participantsHidden` on the response */
+  participants: TournamentDetailParticipant[];
   createdAt: string;
 }
 
@@ -70,6 +84,8 @@ export interface GetTournamentsResponse {
   success: boolean;
   tournaments: Tournament[];
   totalCount: number;
+  page: number;
+  totalPages: number;
 }
 
 export interface GetTournamentDetailResponse {
@@ -220,8 +236,13 @@ export const proposeTournament = async (
   return res.data;
 };
 
-export const getMyTournaments = async (): Promise<MyTournamentsResponse> => {
-  const res = await apiClient.get<MyTournamentsResponse>("/api/quiz/tournament/mine");
+export const getMyTournaments = async (
+  page = 1,
+  limit = 20
+): Promise<MyTournamentsResponse> => {
+  const res = await apiClient.get<MyTournamentsResponse>("/api/quiz/tournament/mine", {
+    params: { page, limit },
+  });
   return res.data;
 };
 

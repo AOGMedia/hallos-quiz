@@ -95,7 +95,7 @@ const Onboarding = () => {
                     <img src={mockPlayers[0].avatar} className="w-8 h-8 rounded-full" alt="" />
                     <div>
                       <span className="font-medium text-sm">BrainBlitz</span>
-                      <p className="text-xs text-muted-foreground ">1300 Chuta Points</p>
+                      <p className="text-xs text-muted-foreground ">1300 Morgan Points</p>
                     </div>
                   </div>
                   <div className="bg-secondary rounded-lg p-3">
@@ -130,7 +130,7 @@ const Onboarding = () => {
                       </div>
                       <div className="space-y-1 mb-2">
                         <p className="text-[10px] sm:text-xs text-warning flex items-center gap-1">
-                          <Zap className="w-3 h-3" /> {player.points} Chuta Points
+                          <Zap className="w-3 h-3" /> {player.points} Morgan Points
                         </p>
                         <p className="text-[10px] sm:text-xs text-muted-foreground">
                           ⊘ {player.wins} Wins / {player.losses} Losses
