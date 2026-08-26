@@ -23,7 +23,12 @@ const ProfileSetup = () => {
   const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   // Live nickname availability check (debounced inside hook)
-  const { data: checkData, isFetching: isChecking } = useNicknameCheck(nickname);
+  const {
+    data: checkData,
+    isFetching: isChecking,
+    isError: isCheckError,
+    error: checkError,
+  } = useNicknameCheck(nickname);
   const isAvailable = checkData ? checkData.available : null;
 
   // Registration mutation
@@ -48,6 +53,24 @@ const ProfileSetup = () => {
     agreedToTerms &&
     !isPending &&
     !isChecking;
+
+  /**
+   * Why the submit button is disabled. Without this the button just sits greyed
+   * out with no explanation — especially confusing when the availability check
+   * itself failed (backend down / 401), since that leaves `isAvailable` null
+   * and renders neither the green tick nor the red X.
+   */
+  const disabledReason = (() => {
+    if (canSubmit || isPending) return null;
+    if (!nickname) return "Enter a nickname to continue";
+    if (!isNicknameValid) return "Nickname must be 3–30 characters, letters/numbers/_ only";
+    if (isChecking) return "Checking nickname availability…";
+    if (isCheckError) return "Couldn't check nickname availability — check your connection and try again";
+    if (isAvailable === false) return "That nickname is taken — try another";
+    if (isAvailable === null) return "Waiting on nickname availability…";
+    if (!agreedToTerms) return "Please agree to the terms of use to continue";
+    return null;
+  })();
 
   const handleStartPlaying = () => {
     if (!isNicknameValid) {
@@ -126,19 +149,27 @@ const ProfileSetup = () => {
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2">
                 {isChecking && <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />}
-                {!isChecking && isAvailable === true && isNicknameValid && (
+                {!isChecking && isCheckError && (
+                  <AlertCircle className="w-4 h-4 text-yellow-400" />
+                )}
+                {!isChecking && !isCheckError && isAvailable === true && isNicknameValid && (
                   <CheckCircle2 className="w-4 h-4 text-green-400" />
                 )}
-                {!isChecking && isAvailable === false && (
+                {!isChecking && !isCheckError && isAvailable === false && (
                   <XCircle className="w-4 h-4 text-red-400" />
                 )}
               </span>
             </div>
-            {!isChecking && isAvailable === true && isNicknameValid && (
+            {!isChecking && !isCheckError && isAvailable === true && isNicknameValid && (
               <p className="text-xs text-green-400 mt-1 text-center">Nickname is available ✓</p>
             )}
-            {!isChecking && isAvailable === false && (
+            {!isChecking && !isCheckError && isAvailable === false && (
               <p className="text-xs text-red-400 mt-1 text-center">Nickname is taken</p>
+            )}
+            {!isChecking && isCheckError && (
+              <p className="text-xs text-yellow-400 mt-1 text-center">
+                Couldn&apos;t check availability: {(checkError as Error)?.message ?? "request failed"}
+              </p>
             )}
             {validationError && (
               <p className="text-xs text-red-400 mt-1 text-center">{validationError}</p>
@@ -177,17 +208,24 @@ const ProfileSetup = () => {
               By checking this box you agree to the{" "}
               <a href="#" className="text-primary hover:underline">terms of use</a> and{" "}
               <a href="#" className="text-primary hover:underline">privacy policy</a>
+              <span className="text-primary ml-1" aria-hidden="true">*</span>
+              <span className="sr-only">(required)</span>
             </p>
           </div>
 
           {/* Submit */}
-          <button
-            onClick={handleStartPlaying}
-            disabled={!canSubmit}
-            className={`btn-primary w-full ${!canSubmit ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            {isPending ? "Setting up..." : "Start Playing"}
-          </button>
+          <div>
+            <button
+              onClick={handleStartPlaying}
+              disabled={!canSubmit}
+              className={`btn-primary w-full ${!canSubmit ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              {isPending ? "Setting up..." : "Start Playing"}
+            </button>
+            {disabledReason && (
+              <p className="text-xs text-muted-foreground mt-2 text-center">{disabledReason}</p>
+            )}
+          </div>
 
           {/* Already registered link */}
           <button

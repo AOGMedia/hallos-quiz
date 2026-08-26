@@ -10,6 +10,7 @@ import InviteFriendModal from "@/components/invite/InviteFriendModal";
 import { soundEngine } from "@/lib/soundEngine";
 import { useLobbyPlayers } from "@/hooks/useLobbyPlayers";
 import { useCreateChallenge, useAcceptChallenge, useDeclineChallenge, useCancelChallenge, useActiveMatch } from "@/hooks/useChallenge";
+import { useGetOrCreateConversation } from "@/hooks/useChat";
 import type { LobbyPlayer } from "@/lib/api/lobby";
 import { getSocket } from "@/lib/socket/socket";
 import {
@@ -91,7 +92,7 @@ const Lobby = () => {
       sessionStorage.setItem("currentMatch", JSON.stringify({
         matchId: payload.matchId,
         player1: { name: me.nickname, avatar: me.avatar },
-        player2: { name: payload.opponent.nickname, avatar: payload.opponent.avatarUrl },
+        player2: { userId: payload.opponent.userId, name: payload.opponent.nickname, avatar: payload.opponent.avatarUrl },
         questions: payload.questions,
         challengerId: getMyId(),
       }));
@@ -170,7 +171,7 @@ const Lobby = () => {
       matchId: match.matchId,
       player1: { name: userProfile.nickname, avatar: userProfile.avatar },
       player2: match.challenger
-        ? { name: match.challenger.nickname, avatar: match.challenger.avatarUrl }
+        ? { userId: match.challenger.userId, name: match.challenger.nickname, avatar: match.challenger.avatarUrl }
         : { name: "Opponent", avatar: "" },
       questions: match.questions,
       challengerId: match.challengerId,
@@ -189,6 +190,15 @@ const Lobby = () => {
     setSelectedPlayer(player);
     setModalState("challenge");
     soundEngine.startBellLoop();
+  };
+
+  const { mutate: getOrCreateConversation } = useGetOrCreateConversation();
+  const handleMessage = (player: LobbyPlayer) => {
+    getOrCreateConversation(player.userId, {
+      onSuccess: (res) => {
+        navigate("/chat", { state: { openConversationId: res.conversationId } });
+      },
+    });
   };
 
   const handleChallengeSubmit = (payload: { categoryId: string; categoryName: string; wagerAmount: number }) => {
@@ -317,6 +327,8 @@ const Lobby = () => {
                     wins={player.wins}
                     losses={player.losses}
                     onChallenge={() => handleChallenge(player)}
+                    userId={player.userId}
+                    onMessage={() => handleMessage(player)}
                   />
                 ))}
               </div>
@@ -361,7 +373,7 @@ const Lobby = () => {
                 matchId,
                 player1: { name: me.nickname, avatar: me.avatar },
                 player2: challenger
-                  ? { name: challenger.nickname, avatar: challenger.avatarUrl }
+                  ? { userId: challenger.userId, name: challenger.nickname, avatar: challenger.avatarUrl }
                   : { name: "Opponent", avatar: "" },
                 questions: questions ?? [],
                 challengerId: challenger?.userId,
@@ -415,7 +427,7 @@ const Lobby = () => {
                     matchId: res.matchId,
                     player1: { name: me.nickname, avatar: me.avatar },
                     player2: selectedPlayer
-                      ? { name: selectedPlayer.nickname, avatar: selectedPlayer.avatarUrl }
+                      ? { userId: selectedPlayer.userId, name: selectedPlayer.nickname, avatar: selectedPlayer.avatarUrl }
                       : { name: counterOffer.opponentNickname, avatar: "" },
                     questions: res.questions ?? [],
                     // In a counter-offer, the opponent who countered is now the challenger

@@ -13,6 +13,7 @@ import ShareResultModal from "@/components/results/ShareResultModal";
 import ForfeitModal from "@/components/modals/ForfeitModal";
 import { avatars } from "@/data/gameData";
 import { useForfeitMatch } from "@/hooks/useChallenge";
+import { useGetOrCreateConversation } from "@/hooks/useChat";
 import { joinMatch, submitAnswer } from "@/lib/socket/emitters";
 import { attachMatchEvents, detachMatchEvents } from "@/lib/socket/events";
 import { getSocket, onConnectionChange } from "@/lib/socket/socket";
@@ -148,6 +149,7 @@ const Gameplay = () => {
   const [showForfeit, setShowForfeit] = useState(false);
   const [winnerId, setWinnerId] = useState<number | null>(null);
   const { mutate: forfeit } = useForfeitMatch();
+  const { mutate: getOrCreateConversation } = useGetOrCreateConversation();
 
   const selectedAnswerRef = useRef<string | null>(null);
   const timeLeftRef = useRef(10);
@@ -502,6 +504,17 @@ const Gameplay = () => {
             <ResultsActions
               onShareResults={() => setIsShareModalOpen(true)}
               returnLabel={isTournamentMatch ? "Back to Tournament" : "Return to Lobby"}
+              onMessageOpponent={
+                player2?.userId
+                  ? () => {
+                      getOrCreateConversation(player2.userId, {
+                        onSuccess: (res) => {
+                          navigate("/chat", { state: { openConversationId: res.conversationId } });
+                        },
+                      });
+                    }
+                  : undefined
+              }
               onReturnToLobby={() => {
                 sessionStorage.removeItem("currentMatch");
                 sessionStorage.removeItem("matchEnded");

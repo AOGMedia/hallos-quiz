@@ -1,5 +1,6 @@
-import { Zap, BarChart2, Swords, User } from "lucide-react";
+import { Zap, BarChart2, Swords, User, MessageCircle } from "lucide-react";
 import { useState } from "react";
+import { useIsContact } from "@/hooks/useChat";
 
 interface LobbyPlayerCardProps {
   name: string;
@@ -9,6 +10,10 @@ interface LobbyPlayerCardProps {
   losses: number;
   isAI?: boolean;
   onChallenge: () => void;
+  /** Real platform userId — only needed to power the optional Message button below. */
+  userId?: number;
+  /** Omit to render the card exactly as before (no Message button). */
+  onMessage?: () => void;
 }
 
 const LobbyPlayerCard = ({
@@ -19,8 +24,15 @@ const LobbyPlayerCard = ({
   losses,
   isAI = false,
   onChallenge,
+  userId,
+  onMessage,
 }: LobbyPlayerCardProps) => {
   const [imgError, setImgError] = useState(false);
+
+  // Chat is scoped to prior contact (a match or invite together) — only
+  // render the button once we know messaging them won't just 403.
+  const { data: contactData } = useIsContact(onMessage ? userId : undefined);
+  const canMessage = !!onMessage && !!contactData?.isContact;
 
   return (
     <div className="card-player flex flex-col h-full">
@@ -60,10 +72,21 @@ const LobbyPlayerCard = ({
         </div>
       </div>
 
-      <button onClick={onChallenge} className="btn-accent w-full flex items-center justify-center gap-2 mt-auto">
-        <Swords className="w-4 h-4" />
-        Challenge
-      </button>
+      <div className="flex items-center gap-2 mt-auto">
+        <button onClick={onChallenge} className="btn-accent flex-1 flex items-center justify-center gap-2">
+          <Swords className="w-4 h-4" />
+          Challenge
+        </button>
+        {canMessage && (
+          <button
+            onClick={onMessage}
+            aria-label={`Message ${name}`}
+            className="flex items-center justify-center w-10 h-10 flex-shrink-0 rounded-lg border border-border bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <MessageCircle className="w-4 h-4" />
+          </button>
+        )}
+      </div>
     </div>
   );
 };
