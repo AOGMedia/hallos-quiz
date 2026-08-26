@@ -12,6 +12,7 @@ import ChutaWallet from "./pages/ChutaWallet";
 import Identity from "./pages/Identity";
 import Gameplay from "./pages/Gameplay";
 import Guide from "./pages/Guide";
+import Chat from "./pages/Chat";
 import CampaignQuiz from "./pages/CampaignQuiz";
 import InviteLanding from "./pages/InviteLanding";
 import PendingInviteWatcher from "./components/invite/PendingInviteWatcher";
@@ -65,6 +66,7 @@ const App = () => (
           <Route path="/wallet"      element={<ChutaWallet />} />
           <Route path="/identity"    element={<Identity />} />
           <Route path="/guide"       element={<Guide />} />
+          <Route path="/chat"        element={<Chat />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

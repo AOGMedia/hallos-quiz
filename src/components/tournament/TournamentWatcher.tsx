@@ -74,7 +74,7 @@ const TournamentWatcher = () => {
       sessionStorage.setItem("currentMatch", JSON.stringify({
         matchId: payload.matchId,
         player1: { name: me.nickname, avatar: me.avatar },
-        player2: { name: payload.opponent.nickname, avatar: payload.opponent.avatarUrl },
+        player2: { userId: payload.opponent.userId, name: payload.opponent.nickname, avatar: payload.opponent.avatarUrl },
         questions: payload.questions,
         challengerId: getMyUserId(),
         tournamentId: payload.tournamentId,

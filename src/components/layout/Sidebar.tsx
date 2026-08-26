@@ -1,22 +1,25 @@
-import { Home, Trophy, BarChart3, Wallet, User, ArrowLeft, Menu, X, HelpCircle } from "lucide-react";
+import { Home, Trophy, BarChart3, Wallet, User, ArrowLeft, Menu, X, HelpCircle, MessageCircle } from "lucide-react";
 import AahbibiLogo from "@/components/icons/AahbibiLogo";
 import { useState } from "react";
 
-export type NavItem = "lobby" | "tournament" | "leaderboard" | "cashout" | "identity" | "guide";
+export type NavItem = "lobby" | "tournament" | "leaderboard" | "cashout" | "identity" | "guide" | "chat";
 
 interface SidebarProps {
   activeItem: NavItem;
   onNavigate: (item: NavItem) => void;
   onExit: () => void;
+  /** Unread chat count shown as a badge on the Chat nav item. Omit/0 renders no badge. */
+  unreadCount?: number;
 }
 
-const Sidebar = ({ activeItem, onNavigate, onExit }: SidebarProps) => {
+const Sidebar = ({ activeItem, onNavigate, onExit, unreadCount }: SidebarProps) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const navItems: { id: NavItem; label: string; icon: typeof Home }[] = [
     { id: "lobby", label: "Lobby", icon: Home },
     { id: "tournament", label: "Tournament", icon: Trophy },
     { id: "leaderboard", label: "Leaderboard", icon: BarChart3 },
+    { id: "chat", label: "Chat", icon: MessageCircle },
     { id: "cashout", label: "Morgan Wallet", icon: Wallet },
     { id: "identity", label: "Game Identity", icon: User },
     { id: "guide", label: "Guide", icon: HelpCircle },
@@ -76,6 +79,11 @@ const Sidebar = ({ activeItem, onNavigate, onExit }: SidebarProps) => {
                 >
                   <item.icon className="w-5 h-5" />
                   {item.label}
+                  {item.id === "chat" && !!unreadCount && unreadCount > 0 && (
+                    <span className="ml-auto flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-accent text-accent-foreground text-[11px] font-semibold">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </button>
               </li>
             ))}
