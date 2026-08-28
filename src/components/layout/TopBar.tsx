@@ -13,6 +13,14 @@ interface TopBarProps {
 
 const TopBar = ({ onlineCount, zetaPoints, wins, totalGames, userAvatar, searchQuery = "", onSearchChange }: TopBarProps) => {
   const navigate = useNavigate();
+
+  // These render on every screen in the app shell, so a bad value here takes
+  // the entire UI down. Coerce rather than trusting the caller — an undefined
+  // balance written by a mutation once blanked the whole app via
+  // `zetaPoints.toLocaleString()`.
+  const safePoints = Number.isFinite(Number(zetaPoints)) ? Number(zetaPoints) : 0;
+  const safeOnline = Number.isFinite(Number(onlineCount)) ? Number(onlineCount) : 0;
+
   return (
     <header className="min-h-[56px] md:h-16 border-b border-border bg-background flex flex-col md:flex-row items-stretch md:items-center justify-between px-4 md:px-6 py-2 md:py-0 gap-2 md:gap-0">
       {/* Search - hidden on mobile, visible from md up */}
@@ -33,11 +41,11 @@ const TopBar = ({ onlineCount, zetaPoints, wins, totalGames, userAvatar, searchQ
         <div className="flex items-center gap-2 shrink-0">
           <span className="w-2 h-2 rounded-full bg-success" />
           <span className="text-xs md:text-sm text-muted-foreground whitespace-nowrap">
-            <span className="hidden sm:inline">{onlineCount.toLocaleString()} players online</span>
+            <span className="hidden sm:inline">{safeOnline.toLocaleString()} players online</span>
             <span className="sm:hidden">
-              {onlineCount >= 1000
-                ? `${(onlineCount / 1000).toFixed(1)}k online`
-                : `${onlineCount} online`}
+              {safeOnline >= 1000
+                ? `${(safeOnline / 1000).toFixed(1)}k online`
+                : `${safeOnline} online`}
             </span>
           </span>
         </div>
@@ -46,7 +54,7 @@ const TopBar = ({ onlineCount, zetaPoints, wins, totalGames, userAvatar, searchQ
         <div className="flex items-center gap-1 md:gap-2 shrink-0">
           <Zap className="w-4 h-4 text-warning" />
           <span className="text-xs md:text-sm text-foreground hidden sm:inline">Morgan Points</span>
-          <span className="text-xs md:text-sm font-semibold text-foreground">{zetaPoints.toLocaleString()}</span>
+          <span className="text-xs md:text-sm font-semibold text-foreground">{safePoints.toLocaleString()}</span>
         </div>
 
         {/* Win rate */}

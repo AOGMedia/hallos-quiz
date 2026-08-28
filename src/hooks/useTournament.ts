@@ -14,6 +14,7 @@ import {
   type ProposeTournamentPayload,
 } from "@/lib/api/tournament";
 import { useChutaWalletStore } from "@/store/chutaWalletStore";
+import { CHUTA_KEYS } from "@/hooks/useChutaWallet";
 import { useTournamentStore } from "@/store/tournamentStore";
 
 export const TOURNAMENT_KEYS = {
@@ -75,7 +76,17 @@ export function useRegisterTournament(id: string) {
   return useMutation({
     mutationFn: () => registerForTournament(id),
     onSuccess: (data) => {
-      setBalance(data.newBalance);
+      // The register endpoint returns { success, entryFeePaid, registrationId }
+      // — it does NOT return newBalance, despite the old type claiming it did.
+      // Blindly calling setBalance(data.newBalance) wrote `undefined` into the
+      // wallet store, and TopBar's `zetaPoints.toLocaleString()` then threw,
+      // unmounting the whole app to a blank screen. Only trust a real number,
+      // and otherwise refetch the balance from its own endpoint.
+      if (typeof data.newBalance === "number" && Number.isFinite(data.newBalance)) {
+        setBalance(data.newBalance);
+      } else {
+        qc.invalidateQueries({ queryKey: CHUTA_KEYS.balance });
+      }
       markRegistered(id);
       qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.detail(id) });
       qc.invalidateQueries({ queryKey: ["tournaments", "list"] });
@@ -92,7 +103,13 @@ export function useUnregisterTournament(id: string) {
   return useMutation({
     mutationFn: () => unregisterFromTournament(id),
     onSuccess: (data) => {
-      setBalance(data.newBalance);
+      // Same as register above — the endpoint returns { success, refundAmount },
+      // with no newBalance. See the note there.
+      if (typeof data.newBalance === "number" && Number.isFinite(data.newBalance)) {
+        setBalance(data.newBalance);
+      } else {
+        qc.invalidateQueries({ queryKey: CHUTA_KEYS.balance });
+      }
       markUnregistered(id);
       qc.invalidateQueries({ queryKey: TOURNAMENT_KEYS.detail(id) });
       qc.invalidateQueries({ queryKey: ["tournaments", "list"] });
