@@ -6,7 +6,7 @@ interface WagerBadgeProps {
   size?: "sm" | "md";
 }
 
-const WagerBadge = ({ amount, label = "Wager", size = "md" }: WagerBadgeProps) => (
+const WagerBadge = ({ amount, label = "Points", size = "md" }: WagerBadgeProps) => (
   <div className={`flex items-center justify-between p-3 sm:p-4 bg-card border border-border rounded-xl ${size === "sm" ? "py-2" : ""}`}>
     <div className="flex items-center gap-2">
       <Zap className={`text-warning ${size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4"}`} />

@@ -15,7 +15,7 @@ export const TX_LABELS: Record<TransactionType, string> = {
   initial_bonus:     "Welcome bonus",
   purchase:          "MP purchase",
   withdrawal:        "MP withdrawal",
-  match_wager:       "Match wager",
+  match_wager:       "Match points",
   match_win:         "Match win",
   match_refund:      "Match refund",
   tournament_entry:  "Tournament entry",

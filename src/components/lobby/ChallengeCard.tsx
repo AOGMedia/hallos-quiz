@@ -68,7 +68,7 @@ const ChallengeCard = ({ challenge, onAccept, onDecline, isAccepting, isDeclinin
       </div>
 
       {/* Wager */}
-      <WagerBadge amount={challenge.wagerAmount} label="Wager" size="sm" />
+      <WagerBadge amount={challenge.wagerAmount} label="Points" size="sm" />
 
       {/* Actions */}
       <div className="flex gap-2">
