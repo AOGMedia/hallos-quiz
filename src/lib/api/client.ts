@@ -20,8 +20,17 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
+    // Two response shapes are in play: controllers return `{ success, message }`
+    // directly, while anything routed through quizErrorHandler returns
+    // `{ success, error: { type, message } }`. Reading only the first meant
+    // every error from the platform's own error handler surfaced as a generic
+    // axios string ("Request failed with status code 500") instead of the
+    // server's actual reason.
     const message =
-      error.response?.data?.message ?? error.message ?? "Request failed";
+      error.response?.data?.message ??
+      error.response?.data?.error?.message ??
+      error.message ??
+      "Request failed";
 
     if (status === 401) {
       // Token missing or expired — clear session and send back to main platform.

@@ -89,7 +89,7 @@ const ChallengeStatusModal = ({
                 player2={player}
               />
               <CategoryTags categories={categories} label="Categories" />
-              {wagerAmount > 0 && <WagerBadge amount={wagerAmount} label="Wager (held in escrow)" />}
+              {wagerAmount > 0 && <WagerBadge amount={wagerAmount} label="Points (held in escrow)" />}
             </div>
             <div className="flex gap-2 sm:gap-3">
               <button onClick={onCancel} className="btn-ghost flex-1 text-sm sm:text-base py-2 sm:py-3">No</button>
@@ -158,7 +158,7 @@ const ChallengeStatusModal = ({
             <p className="text-muted-foreground text-sm mb-4">{player.name} declined your challenge</p>
             {wagerAmount > 0 && (
               <div className="mb-4 text-left">
-                <WagerBadge amount={wagerAmount} label="Wager refunded" />
+                <WagerBadge amount={wagerAmount} label="Points refunded" />
               </div>
             )}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
@@ -203,7 +203,7 @@ const ChallengeStatusModal = ({
             </div>
             <h2 className="text-base sm:text-lg font-semibold mb-1">Counter Offer</h2>
             <p className="text-xs sm:text-sm text-muted-foreground mb-4">
-              <span className="text-primary font-medium">{player.name}</span> wants to change the wager
+              <span className="text-primary font-medium">{player.name}</span> wants to change the points
             </p>
             <div className="space-y-3 mb-5 text-left">
               <div className="grid grid-cols-2 gap-2">

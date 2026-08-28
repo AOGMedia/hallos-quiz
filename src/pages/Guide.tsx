@@ -37,7 +37,7 @@ const MORGAN_GUIDE_PAGES = [
   {
     title: "5. Transactions",
     subtitle: "The Winner's Economy",
-    text: "Matches are peer-to-peer. When you wager 100 MP, you're competing for a 200 MP pot. After the house commission, the winner takes it all!",
+    text: "Matches are peer-to-peer. When you put up 100 MP, you're competing for a 200 MP pot. After the house commission, the winner takes it all!",
     icon: <Trophy className="w-8 h-8 text-accent" />
   }
 ];
@@ -75,8 +75,8 @@ const Guide = () => {
                     <Zap className="w-6 h-6 text-accent" /> The Arena Rulebook
                  </h3>
                  <p className="text-sm sm:text-base text-muted-foreground mb-6 leading-relaxed">
-                    Master every aspect of the Hallos Quiz Arena. From navigation to high-stakes 
-                    wagering, this interactive guide covers everything you need to become a champion.
+                    Master every aspect of the Hallos Quiz Arena. From navigation to high-stakes
+                    points, this interactive guide covers everything you need to become a champion.
                  </p>
                  <div className="flex flex-wrap items-center gap-6 text-[10px] sm:text-xs font-bold text-accent uppercase tracking-widest">
                     <span className="flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> 1 MP = ₦14</span>

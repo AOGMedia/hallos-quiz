@@ -7,7 +7,7 @@ import type { TransactionType } from "@/lib/api/chutaWallet";
 const TYPE_FILTERS: { label: string; value: TransactionType | "all" }[] = [
   { label: "All",        value: "all" },
   { label: "Wins",       value: "match_win" },
-  { label: "Wagers",     value: "match_wager" },
+  { label: "Points",     value: "match_wager" },
   { label: "Tournaments",value: "tournament_prize" },
   { label: "Purchases",  value: "purchase" },
   { label: "Withdrawals",value: "withdrawal" },

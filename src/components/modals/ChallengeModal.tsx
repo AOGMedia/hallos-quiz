@@ -137,7 +137,7 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Zap className="w-4 h-4 text-warning" />
-              <h4 className="font-semibold text-sm sm:text-base">Wager Amount</h4>
+              <h4 className="font-semibold text-sm sm:text-base">Points Amount</h4>
               <span className="text-[10px] sm:text-xs text-muted-foreground">(optional · 0 MP = free match)</span>
             </div>
 
@@ -182,7 +182,7 @@ const ChallengeModal = ({ player, onClose, onChallenge }: ChallengeModalProps) =
           )}
 
           {customWager !== "" && effectiveWager < 0 && (
-            <p className="text-xs text-destructive">Wager cannot be negative</p>
+            <p className="text-xs text-destructive">Points cannot be negative</p>
           )}
         </div>
 

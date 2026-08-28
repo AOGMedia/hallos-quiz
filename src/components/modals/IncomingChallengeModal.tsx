@@ -111,13 +111,13 @@ const IncomingChallengeModal = ({
         {/* Categories + wager */}
         <div className="space-y-3 mb-5">
           <CategoryTags categories={categories} label="Categories" />
-          {wagerAmount > 0 && <WagerBadge amount={wagerAmount} label="Wager at stake" />}
+          {wagerAmount > 0 && <WagerBadge amount={wagerAmount} label="Points at stake" />}
         </div>
 
         {/* Counter offer section */}
         {showCounter && (
           <div className="mb-4 space-y-3 p-3 bg-secondary rounded-xl">
-            <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Propose counter wager</p>
+            <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Propose counter points</p>
             <div className="grid grid-cols-4 gap-1.5">
               {COUNTER_PRESETS.map((p) => (
                 <button

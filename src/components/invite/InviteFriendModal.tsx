@@ -122,7 +122,7 @@ const InviteFriendModal = ({ onClose }: InviteFriendModalProps) => {
                 onClick={() => setShowWager((v) => !v)}
                 className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted transition-colors"
               >
-                <span>Add a wager <span className="text-muted-foreground">(optional)</span></span>
+                <span>Add points <span className="text-muted-foreground">(optional)</span></span>
                 <ChevronDown
                   className={`w-4 h-4 transition-transform ${showWager ? "rotate-180" : ""}`}
                 />
@@ -198,7 +198,7 @@ const InviteFriendModal = ({ onClose }: InviteFriendModalProps) => {
 
                   {showWager && effectiveWager > 0 && !category && (
                     <p className="text-xs text-warning">
-                      Pick a category too — a wager alone can't auto-start a match.
+                      Pick a category too — points alone can't auto-start a match.
                     </p>
                   )}
                 </div>
