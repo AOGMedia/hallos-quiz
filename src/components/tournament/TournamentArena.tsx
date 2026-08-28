@@ -5,6 +5,7 @@ import TournamentCard from "./TournamentCard";
 import { useTournaments } from "@/hooks/useTournament";
 import { FORMAT_LABELS, type Tournament, type TournamentFormat, type TournamentStatus } from "@/lib/api/tournament";
 import FormatBadge from "./FormatBadge";
+import { formatMPWithUnit } from "@/lib/helpers/formatMP";
 import tournamentBg from "@/assets/tournament-bg.png";
 
 type FilterFormat = "all" | TournamentFormat;
@@ -143,13 +144,13 @@ const TournamentArena = ({ onHistoryClick, onHostClick, onSelectTournament }: To
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">PRIZE POOL</p>
                   <p className="text-sm sm:text-lg font-bold text-yellow-400 flex items-center gap-1">
                     <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
-                    {featured ? `${featured.prizePool.toLocaleString()} MP` : "—"}
+                    {featured ? formatMPWithUnit(featured.prizePool) : "—"}
                   </p>
                 </div>
                 <div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">ENTRY FEE</p>
                   <p className="text-sm sm:text-lg font-bold text-foreground">
-                    {featured ? `${featured.entryFee} MP` : "—"}
+                    {featured ? formatMPWithUnit(featured.entryFee) : "—"}
                   </p>
                 </div>
                 <div>

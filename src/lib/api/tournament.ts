@@ -42,6 +42,8 @@ export interface Tournament {
   categoryId: string;
   categoryName: string;
   maxParticipants: number | null; // null = unlimited
+  /** Below this at start time the tournament auto-cancels and refunds. */
+  minParticipants?: number;
   currentParticipants: number;
   prizePool: number;
   registrationDeadline: string;
@@ -94,6 +96,9 @@ export interface GetTournamentDetailResponse {
   participantCount: number;
   prizePool: number;
   participantsHidden: boolean;
+  /** Authoritative — the participants array is blanked for privacy before the
+   *  tournament starts, so registration can't be derived from it client-side. */
+  isRegistered: boolean;
 }
 
 export interface RegisterResponse {
