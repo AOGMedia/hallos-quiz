@@ -101,19 +101,23 @@ export interface GetTournamentDetailResponse {
   isRegistered: boolean;
 }
 
+/* The register/unregister endpoints return only the fields marked required
+ * below — `newBalance` and `message` were previously declared as required but
+ * are never sent, so consumers must treat them as optional and fall back to
+ * refetching the balance. See useTournament.ts. */
 export interface RegisterResponse {
   success: boolean;
   entryFeePaid: number;
   registrationId: string;
-  newBalance: number;
-  message: string;
+  newBalance?: number;
+  message?: string;
 }
 
 export interface UnregisterResponse {
   success: boolean;
   refundAmount: number;
-  newBalance: number;
-  message: string;
+  newBalance?: number;
+  message?: string;
 }
 
 export interface TournamentParticipant {

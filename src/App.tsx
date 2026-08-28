@@ -20,6 +20,7 @@ import InviteNotifications from "./components/invite/InviteNotifications";
 import TournamentWatcher from "./components/tournament/TournamentWatcher";
 import TournamentGameplay from "./pages/TournamentGameplay";
 import NotFound from "./pages/NotFound";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { getToken } from "./store/authStore";
 
 /** Returns true if the user has a valid token + a persisted registered profile */
@@ -40,6 +41,7 @@ const GuestOnlyRoute = ({ element }: { element: React.ReactElement }) =>
   isRegisteredUser() ? <Navigate to="/lobby" replace /> : element;
 
 const App = () => (
+  <ErrorBoundary>
   <TooltipProvider>
     <Toaster />
     <Sonner />
@@ -79,6 +81,7 @@ const App = () => (
       <TournamentWatcher />
     </BrowserRouter>
   </TooltipProvider>
+  </ErrorBoundary>
 );
 
 export default App;
