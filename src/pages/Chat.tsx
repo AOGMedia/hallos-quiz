@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import {
-  Loader2, MessageCircle, ChevronLeft, ChevronRight, ArrowLeft, Send,
+  Loader2, MessageCircle, ChevronLeft, ChevronRight, ArrowLeft, Send, AlertCircle,
 } from "lucide-react";
 import {
   useConversations,
@@ -32,17 +32,35 @@ function fmtListDate(iso: string | null): string {
 // ── Conversation list ───────────────────────────────────────────────────────
 
 interface ConversationListProps {
-  onOpen: (conversationId: string) => void;
+  onOpen: (conversationId: string, otherUser: { nickname: string; avatarUrl: string | null }) => void;
 }
 
 const ConversationList = ({ onOpen }: ConversationListProps) => {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useConversations(page, PAGE_LIMIT);
+  const { data, isLoading, isError, error, refetch } = useConversations(page, PAGE_LIMIT);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading your conversations…
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-center px-4">
+        <AlertCircle className="w-6 h-6 text-destructive mb-2" />
+        <p className="text-sm font-semibold text-foreground">Couldn&apos;t load conversations</p>
+        <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+          {(error as Error)?.message ?? "Something went wrong."}
+        </p>
+        <button
+          onClick={() => refetch()}
+          className="mt-3 px-4 py-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-medium hover:bg-accent/90 transition-colors"
+        >
+          Try again
+        </button>
       </div>
     );
   }
@@ -70,7 +88,7 @@ const ConversationList = ({ onOpen }: ConversationListProps) => {
       {conversations.map((c) => (
         <button
           key={c.id}
-          onClick={() => onOpen(c.id)}
+          onClick={() => onOpen(c.id, { nickname: c.otherUser.nickname, avatarUrl: c.otherUser.avatarUrl })}
           className="w-full flex items-center gap-3 bg-background border border-border rounded-xl p-3 text-left hover:bg-muted/50 transition-colors"
         >
           <div className="w-11 h-11 rounded-full border-2 border-border bg-secondary flex-shrink-0 overflow-hidden flex items-center justify-center">
@@ -133,12 +151,14 @@ const ConversationList = ({ onOpen }: ConversationListProps) => {
 interface ChatThreadProps {
   conversationId: string;
   onBack: () => void;
+  /** Who we're talking to, passed from the list so the header isn't a generic "Conversation". */
+  otherUser?: { nickname: string; avatarUrl: string | null };
 }
 
-const ChatThread = ({ conversationId, onBack }: ChatThreadProps) => {
+const ChatThread = ({ conversationId, onBack, otherUser }: ChatThreadProps) => {
   const myUserId = useMemo(getMyUserId, []);
   const queryClient = useQueryClient();
-  const { data, isLoading } = useChatMessages(conversationId, 1, PAGE_LIMIT);
+  const { data, isLoading, isError, error, refetch } = useChatMessages(conversationId, 1, PAGE_LIMIT);
   const { mutate: sendViaRest, isPending: sendingViaRest } = useSendChatMessage();
   const { mutate: markRead } = useMarkConversationRead();
 
@@ -228,7 +248,22 @@ const ChatThread = ({ conversationId, onBack }: ChatThreadProps) => {
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <span className="text-sm font-semibold text-foreground">Conversation</span>
+        {otherUser ? (
+          <>
+            <div className="w-8 h-8 rounded-full border border-border bg-secondary flex-shrink-0 overflow-hidden flex items-center justify-center">
+              {otherUser.avatarUrl ? (
+                <img src={otherUser.avatarUrl} alt={otherUser.nickname} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xs font-bold text-muted-foreground">
+                  {otherUser.nickname.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <span className="text-sm font-semibold text-foreground truncate">{otherUser.nickname}</span>
+          </>
+        ) : (
+          <span className="text-sm font-semibold text-foreground">Conversation</span>
+        )}
       </div>
 
       {!socketConnected && (
@@ -241,6 +276,23 @@ const ChatThread = ({ conversationId, onBack }: ChatThreadProps) => {
         {isLoading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" /> Loading messages…
+          </div>
+        ) : isError ? (
+          /* Without this branch a failed fetch fell through to "No messages
+             yet" — indistinguishable from an genuinely empty conversation,
+             even when the list clearly showed a last-message preview. */
+          <div className="flex flex-col items-center justify-center py-10 text-center px-4">
+            <AlertCircle className="w-6 h-6 text-destructive mb-2" />
+            <p className="text-sm font-semibold text-foreground">Couldn&apos;t load messages</p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+              {(error as Error)?.message ?? "Something went wrong."}
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="mt-3 px-4 py-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-medium hover:bg-accent/90 transition-colors"
+            >
+              Try again
+            </button>
           </div>
         ) : allMessages.length === 0 ? (
           <p className="text-center text-xs text-muted-foreground py-10">
@@ -300,20 +352,21 @@ const ChatThread = ({ conversationId, onBack }: ChatThreadProps) => {
  */
 const Chat = () => {
   const location = useLocation() as { state?: { openConversationId?: string } };
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(
-    location.state?.openConversationId ?? null
-  );
+  const [selected, setSelected] = useState<
+    { id: string; otherUser?: { nickname: string; avatarUrl: string | null } } | null
+  >(location.state?.openConversationId ? { id: location.state.openConversationId } : null);
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
-      {selectedConversationId ? (
+      {selected ? (
         <ChatThread
-          conversationId={selectedConversationId}
-          onBack={() => setSelectedConversationId(null)}
+          conversationId={selected.id}
+          otherUser={selected.otherUser}
+          onBack={() => setSelected(null)}
         />
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <ConversationList onOpen={setSelectedConversationId} />
+          <ConversationList onOpen={(id, otherUser) => setSelected({ id, otherUser })} />
         </div>
       )}
     </div>

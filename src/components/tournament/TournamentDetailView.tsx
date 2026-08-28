@@ -6,6 +6,7 @@ import { useTournamentDetail, useRegisterTournament, useUnregisterTournament } f
 import { useTournamentStore } from "@/store/tournamentStore";
 import { FORMAT_LABELS } from "@/lib/api/tournament";
 import { joinTournament } from "@/lib/socket/tournamentEmitters";
+import { formatMPWithUnit, toAmount } from "@/lib/helpers/formatMP";
 
 interface TournamentDetailViewProps {
   tournamentId: string;
@@ -21,12 +22,18 @@ function fmt(iso: string) {
 }
 
 const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: TournamentDetailViewProps) => {
-  const { data, isLoading } = useTournamentDetail(tournamentId);
+  const { data, isLoading, isError, error, refetch } = useTournamentDetail(tournamentId);
   const registerMutation   = useRegisterTournament(tournamentId);
   const unregisterMutation = useUnregisterTournament(tournamentId);
   const registered = useTournamentStore((s) => s.isRegistered(tournamentId));
 
   const t = data?.tournament;
+
+  // The server is the source of truth for "am I registered" — the Zustand flag
+  // is only a local optimistic marker and is empty after a reload, which made a
+  // registered user see the Register button again. Can't be derived from
+  // `participants`, which the server blanks for privacy until the tournament starts.
+  const isRegistered = data?.isRegistered === true || registered;
 
   // Join the tournament's socket room so round_started/round_ended broadcasts
   // (shared-question formats) and the live leaderboard reach us while an
@@ -68,6 +75,40 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
         </div>
       )}
 
+      {/* Without this the whole screen rendered blank on any fetch failure —
+          there was no branch for `isError`, and `t` is undefined in that case. */}
+      {isError && (
+        <div className="max-w-2xl bg-card border border-border rounded-xl p-6 text-center">
+          <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-3" />
+          <p className="text-sm font-semibold text-foreground mb-1">Couldn&apos;t load this tournament</p>
+          <p className="text-xs text-muted-foreground mb-4">
+            {(error as Error)?.message ?? "Something went wrong."}
+          </p>
+          <div className="flex gap-2 justify-center">
+            <Button onClick={() => refetch()} className="bg-accent hover:bg-accent/90 text-accent-foreground text-sm">
+              Try again
+            </Button>
+            <Button onClick={onBack} variant="outline" className="border-border text-sm">
+              Back
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Query resolved but returned nothing renderable — also previously blank. */}
+      {!isLoading && !isError && !t && (
+        <div className="max-w-2xl bg-card border border-border rounded-xl p-6 text-center">
+          <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+          <p className="text-sm font-semibold text-foreground mb-1">Tournament not found</p>
+          <p className="text-xs text-muted-foreground mb-4">
+            It may have been cancelled or is no longer available.
+          </p>
+          <Button onClick={onBack} variant="outline" className="border-border text-sm">
+            Back to tournaments
+          </Button>
+        </div>
+      )}
+
       {t && (
         <div className="space-y-4 sm:space-y-5 max-w-2xl">
           {/* Hero card */}
@@ -83,14 +124,23 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
             {/* Key stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-4">
               {[
-                { label: "Entry Fee",   value: `${t.entryFee} MP`,              icon: Zap,      color: "text-warning" },
-                { label: "Prize Pool",  value: `${t.prizePool.toLocaleString()} MP`, icon: Trophy, color: "text-yellow-400" },
+                { label: "Entry Fee",   value: formatMPWithUnit(t.entryFee),   icon: Zap,      color: "text-warning" },
+                // The pool is a running total of collected entry fees, not a
+                // fixed advertised prize — with one entrant it legitimately
+                // equals the entry fee, which reads like a bug without this label.
+                { label: "Pool so far", value: formatMPWithUnit(t.prizePool),  icon: Trophy,   color: "text-yellow-400" },
                 { label: "Players",     value: t.maxParticipants ? `${data.participantCount}/${t.maxParticipants}` : `${data.participantCount}`, icon: Users, color: "text-primary" },
                 {
                   label: t.status === "in_progress" ? "Progress" : "Rounds",
+                  // totalRounds is null until the tournament starts — for
+                  // knockout/battle_royale it's derived from the final entrant
+                  // count, so it genuinely can't be known in advance. It used
+                  // to render literally as "null rounds".
                   value: t.status === "in_progress"
-                    ? `Round ${t.currentRound || 1}/${t.totalRounds}`
-                    : `${t.totalRounds} rounds`,
+                    ? `Round ${t.currentRound || 1}/${t.totalRounds ?? "?"}`
+                    : t.totalRounds != null
+                      ? `${t.totalRounds} rounds`
+                      : "TBD",
                   icon: BarChart2,
                   color: "text-accent",
                 },
@@ -102,6 +152,16 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
                 </div>
               ))}
             </div>
+
+            {t.status === "open" && toAmount(t.entryFee) > 0 && (
+              <p className="text-[11px] text-muted-foreground mt-3 text-center">
+                The pool grows by {formatMPWithUnit(t.entryFee)} per entrant
+                {t.maxParticipants
+                  ? ` — up to ${formatMPWithUnit(toAmount(t.entryFee) * t.maxParticipants)} if it fills.`
+                  : "."}
+                {t.totalRounds == null && " Rounds are set when the tournament starts."}
+              </p>
+            )}
           </div>
 
           {/* Prize distribution */}
@@ -119,7 +179,7 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
                   <p className="text-xs sm:text-sm font-bold text-foreground">{pct}%</p>
                   <p className="text-[10px] text-muted-foreground">{place}</p>
                   <p className="text-[10px] text-yellow-400">
-                    {Math.round(t.prizePool * pct / 100).toLocaleString()} MP
+                    {formatMPWithUnit(Math.round(toAmount(t.prizePool) * pct / 100))}
                   </p>
                 </div>
               ))}
@@ -196,13 +256,23 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
             )}
           </div>
 
+          {/* Persistent registered state — the mutation success flags below are
+              transient and disappear on reload/refetch, which made a registered
+              user see no confirmation at all after coming back to this screen. */}
+          {t.status === "open" && isRegistered && !unregisterMutation.isSuccess && (
+            <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl text-xs sm:text-sm">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              You&apos;re registered for this tournament. It starts {fmt(t.startTime)}.
+            </div>
+          )}
+
           {/* Feedback */}
           {(registerMutation.isSuccess || unregisterMutation.isSuccess) && (
             <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl text-xs sm:text-sm">
               <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
               {registerMutation.isSuccess
-                ? `Registered! ${t.entryFee} MP deducted.`
-                : `Unregistered. ${t.entryFee} MP refunded.`}
+                ? `Registered! ${formatMPWithUnit(t.entryFee)} deducted.`
+                : `Unregistered. ${formatMPWithUnit(t.entryFee)} refunded.`}
             </div>
           )}
           {(registerMutation.isError || unregisterMutation.isError) && (
@@ -224,7 +294,7 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
               </Button>
             )}
 
-            {t.status === "open" && !registered && (
+            {t.status === "open" && !isRegistered && (
               <Button
                 onClick={handleRegister}
                 disabled={
@@ -233,11 +303,11 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
                 }
                 className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground text-sm disabled:opacity-40"
               >
-                {registerMutation.isPending ? "Registering…" : `Register · ${t.entryFee} MP`}
+                {registerMutation.isPending ? "Registering…" : `Register · ${formatMPWithUnit(t.entryFee)}`}
               </Button>
             )}
 
-            {t.status === "open" && registered && (
+            {t.status === "open" && isRegistered && (
               <Button
                 onClick={handleUnregister}
                 disabled={unregisterMutation.isPending}

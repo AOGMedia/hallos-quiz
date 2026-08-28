@@ -1,6 +1,7 @@
 import { Zap, Users, Clock } from "lucide-react";
 import FormatBadge from "./FormatBadge";
 import type { Tournament } from "@/lib/api/tournament";
+import { formatMP, formatMPWithUnit } from "@/lib/helpers/formatMP";
 
 interface TournamentCardProps {
   tournament: Tournament;
@@ -24,6 +25,13 @@ const TournamentCard = ({ tournament, onSelect }: TournamentCardProps) => {
     ? Math.min(100, Math.round((tournament.currentParticipants / cap) * 100))
     : 0;
 
+  // The capacity bar fills toward maxParticipants, but the threshold that
+  // actually decides whether this tournament runs at all is minParticipants —
+  // below it the lifecycle sweep cancels and refunds everyone. Surface that,
+  // otherwise "2% full" reads as healthy when the event is actually at risk.
+  const min = tournament.minParticipants;
+  const belowMinimum = min != null && tournament.currentParticipants < min;
+
   return (
     <div
       className="card-player flex flex-col gap-3 cursor-pointer hover:border-primary/50 transition-colors"
@@ -42,11 +50,11 @@ const TournamentCard = ({ tournament, onSelect }: TournamentCardProps) => {
       <div className="flex items-center gap-3 text-[10px] sm:text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
           <Zap className="w-3 h-3 text-warning" />
-          {tournament.entryFee} MP
+          {formatMPWithUnit(tournament.entryFee)}
         </span>
         <span className="flex items-center gap-1">
           <Zap className="w-3 h-3 text-yellow-400" />
-          {tournament.prizePool.toLocaleString()} pool
+          {formatMP(tournament.prizePool)} pool
         </span>
         <span className="flex items-center gap-1 ml-auto">
           <Clock className="w-3 h-3" />
@@ -61,7 +69,13 @@ const TournamentCard = ({ tournament, onSelect }: TournamentCardProps) => {
             <Users className="w-3 h-3" />
             {tournament.currentParticipants}{cap != null ? `/${cap}` : ""}
           </span>
-          {cap != null && <span className="text-[10px] text-muted-foreground">{fillPct}%</span>}
+          {belowMinimum ? (
+            <span className="text-[10px] text-warning">
+              {min! - tournament.currentParticipants} more to run
+            </span>
+          ) : (
+            cap != null && <span className="text-[10px] text-muted-foreground">{fillPct}%</span>
+          )}
         </div>
         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
           <div
