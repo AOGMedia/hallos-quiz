@@ -154,6 +154,8 @@ export interface ProposeTournamentPayload {
   registrationDeadline: string;
   startTime: string;
   prizeDistribution?: PrizeDistribution;
+  /** classic/speed_run only — ignored by the backend for knockout/battle_royale, whose round count is derived from the final headcount at start time. */
+  totalRounds?: number;
 }
 
 export interface ProposeTournamentResponse {
@@ -191,6 +193,34 @@ export interface RoundDetailResponse {
   };
   myEntry: { userId: number; score: number; completionTime: number | null; rank: number | null; answers?: string[] } | null;
 }
+
+/**
+ * Persistent, pollable counterpart to the one-shot 'challenge_accepted'/
+ * 'round_started' socket pushes — "where do I join right now?" for a
+ * registrant who may have missed the live push (reload, reconnect, etc).
+ */
+export type MyActiveTournamentPlay =
+  | { type: "none" }
+  | {
+      type: "knockout_match";
+      tournamentId: string;
+      roundNumber: number;
+      matchId: string;
+      challengeId: string;
+      challengerId: number;
+      startTime: string;
+      questions: Array<{ id: string; questionText: string; options: Record<string, string>; difficulty?: string }>;
+      opponent: { userId: number; nickname: string; avatarUrl: string | null };
+    }
+  | {
+      type: "shared_round";
+      tournamentId: string;
+      tournamentName: string | null;
+      format: TournamentFormat | null;
+      roundNumber: number;
+    };
+
+export type MyActiveTournamentPlayResponse = { success: boolean } & MyActiveTournamentPlay;
 
 // ── API functions ─────────────────────────────────────────────────────────────
 
@@ -261,6 +291,13 @@ export const getRoundDetail = async (
 ): Promise<RoundDetailResponse> => {
   const res = await apiClient.get<RoundDetailResponse>(
     `/api/quiz/tournament/${tournamentId}/round/${roundNumber}`
+  );
+  return res.data;
+};
+
+export const getMyActiveTournamentPlay = async (): Promise<MyActiveTournamentPlayResponse> => {
+  const res = await apiClient.get<MyActiveTournamentPlayResponse>(
+    "/api/quiz/tournament/my-active-play"
   );
   return res.data;
 };

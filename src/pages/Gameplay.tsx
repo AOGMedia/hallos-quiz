@@ -78,7 +78,13 @@ const Gameplay = () => {
   const match = matchRaw ? JSON.parse(matchRaw) : null;
 
   const player1 = match?.player1 ?? { name: "You", avatar: avatars[0] };
-  const player2 = match?.player2 ?? { name: "Opponent", avatar: avatars[1] };
+  // No synthetic opponent. This used to fall back to `{ name: "Opponent" }`,
+  // which rendered a fully playable, wagered match against a player who does
+  // not exist — nothing could ever come back from "them", so the match hung
+  // until the AFK/forfeit sweep cleaned it up. A match is only playable when we
+  // know who the real opponent is; `hasRealOpponent` gates entry below.
+  const player2 = match?.player2 as { userId?: number; name: string; avatar: string } | undefined;
+  const hasRealOpponent = typeof player2?.userId === "number" && player2.userId > 0;
   const matchId = match?.matchId as string | undefined;
 
   // Tournament knockout matches carry these — same match/gameplay mechanic,
@@ -534,6 +540,19 @@ const Gameplay = () => {
           />
         </main>
       </div>
+    );
+  }
+
+  // Never render a match whose opponent we can't identify — a real match is
+  // always between two real players. Reuses the same bounce-to-lobby surface as
+  // the no-questions case rather than showing a game against nobody.
+  if (!hasRealOpponent) {
+    return (
+      <LoadingFallback onBackToLobby={() => {
+        sessionStorage.removeItem("currentMatch");
+        sessionStorage.removeItem("matchEnded");
+        navigate(returnPath, { replace: true });
+      }} />
     );
   }
 

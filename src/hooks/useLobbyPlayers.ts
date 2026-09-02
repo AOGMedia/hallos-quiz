@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { fetchLobbyPlayers } from "@/lib/api/lobby";
-import { onPlayersUpdated, offPlayersUpdated } from "@/lib/socket/events";
+import { onPlayersUpdatedScoped } from "@/lib/socket/events";
 import { getSocket } from "@/lib/socket/socket";
 
 const LIMIT = 12;
@@ -54,12 +54,15 @@ export function useLobbyPlayers(page: number) {
 
   // console.log("[useLobbyPlayers] socketReady:", socketReady, "status:", query.status, "players:", query.data?.players?.length ?? 0);
 
+  // Scoped: AppLayout also listens to players_updated for the online count.
+  // The by-name teardown here (offPlayersUpdated -> socket.off("players_updated"))
+  // removed BOTH listeners, so whichever unmounted last silently killed the
+  // other — and because this effect re-runs on every `page` change, it happened
+  // during ordinary pagination, freezing the header's online count until reload.
   useEffect(() => {
-    onPlayersUpdated((payload) => {
-      // console.log("[useLobbyPlayers] players_updated event:", payload);
+    return onPlayersUpdatedScoped(() => {
       qc.invalidateQueries({ queryKey: ["lobby", "players", page] });
     });
-    return () => offPlayersUpdated();
   }, [page, qc]);
 
   return query;

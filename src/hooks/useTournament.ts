@@ -10,6 +10,7 @@ import {
   proposeTournament,
   getMyTournaments,
   getRoundDetail,
+  getMyActiveTournamentPlay,
   type GetTournamentsParams,
   type ProposeTournamentPayload,
 } from "@/lib/api/tournament";
@@ -23,6 +24,7 @@ export const TOURNAMENT_KEYS = {
   leaderboard: (id: string)             => ["tournaments", "leaderboard", id] as const,
   mine:        (page: number)           => ["tournaments", "mine", page] as const,
   round:       (id: string, n: number)  => ["tournaments", "round", id, n] as const,
+  activePlay:  ["tournaments", "myActivePlay"] as const,
 };
 
 export function useTournaments(params: GetTournamentsParams = {}) {
@@ -166,5 +168,24 @@ export function useTournamentRound(
     enabled: (options?.enabled ?? true) && !!tournamentId && roundNumber > 0,
     staleTime: 0,
     gcTime: 0,
+  });
+}
+
+/**
+ * "Where do I join right now?" — persistent, pollable counterpart to the
+ * one-shot 'challenge_accepted'/'round_started' socket pushes. A registrant
+ * shouldn't have to be online at the exact moment their match/round starts to
+ * find it; this lets the UI always show them the way in. Polling is the
+ * self-healing baseline (works even if the push never arrived); components
+ * that already listen for the live push can additionally invalidate
+ * TOURNAMENT_KEYS.activePlay for an instant update instead of waiting out the
+ * interval.
+ */
+export function useMyActiveTournamentPlay() {
+  return useQuery({
+    queryKey: TOURNAMENT_KEYS.activePlay,
+    queryFn: () => getMyActiveTournamentPlay(),
+    staleTime: 15_000,
+    refetchInterval: 20_000,
   });
 }

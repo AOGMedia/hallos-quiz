@@ -70,7 +70,7 @@ const InviteOutcome = ({
         JSON.stringify({
           matchId: claim.matchId,
           player1: { name: me.nickname, avatar: me.avatar },
-          player2: { name: inviter.nickname, avatar: inviter.avatarUrl },
+          player2: { userId: inviter.userId, name: inviter.nickname, avatar: inviter.avatarUrl },
           questions,
           // The inviter created the challenge, so they are the challenger.
           challengerId: challengerId ?? inviter.userId,
