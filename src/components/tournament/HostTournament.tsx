@@ -18,6 +18,17 @@ const FORMATS: TournamentFormat[] = ["classic", "speed_run", "knockout", "battle
 
 const ENTRY_FEE_PRESETS = [0, 50, 100, 250, 500];
 
+// Knockout/battle_royale round counts are derived from the final registered
+// headcount when the tournament starts — not a free choice, so there's no
+// input for them here. classic/speed_run have no elimination mechanic to
+// derive a count from, so — same as entry fee, player caps, and prize split
+// — the organizer sets it directly. Bounds/default must match
+// tournamentService.js's MIN/MAX/DEFAULT_TOURNAMENT_ROUNDS on the backend.
+const CONFIGURABLE_ROUNDS_FORMATS: TournamentFormat[] = ["classic", "speed_run"];
+const DEFAULT_ROUNDS = 3;
+const MIN_ROUNDS = 1;
+const MAX_ROUNDS = 10;
+
 interface NumberFieldProps {
   id: string;
   label: string;
@@ -97,6 +108,7 @@ const HostTournament = ({ onBack }: HostTournamentProps) => {
   const [entryFee, setEntryFee] = useState(100);
   const [minParticipants, setMinParticipants] = useState(4);
   const [maxParticipants, setMaxParticipants] = useState(50);
+  const [totalRounds, setTotalRounds] = useState(DEFAULT_ROUNDS);
   const [registrationDeadline, setRegistrationDeadline] = useState<Date | undefined>();
   const [startTime, setStartTime] = useState<Date | undefined>();
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -153,6 +165,10 @@ const HostTournament = ({ onBack }: HostTournamentProps) => {
       maxParticipants,
       registrationDeadline: registrationDeadline!.toISOString(),
       startTime: startTime!.toISOString(),
+      // Ignored by the backend for knockout/battle_royale (their round count
+      // is computed from the final headcount at start time), so it's fine to
+      // always send the current value regardless of format.
+      totalRounds,
     });
   };
 
@@ -276,6 +292,24 @@ const HostTournament = ({ onBack }: HostTournamentProps) => {
             ))}
           </div>
         </div>
+
+        {CONFIGURABLE_ROUNDS_FORMATS.includes(format) && (
+          <div className="max-w-[12rem]">
+            <NumberField
+              id="total-rounds"
+              label="Rounds"
+              value={totalRounds}
+              onCommit={setTotalRounds}
+              min={MIN_ROUNDS}
+              max={MAX_ROUNDS}
+              hint={
+                totalRounds === 1
+                  ? "One round decides the whole tournament"
+                  : `Score accumulates across all ${totalRounds} rounds — consistency wins, not one lucky round`
+              }
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>

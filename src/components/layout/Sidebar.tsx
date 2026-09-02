@@ -10,9 +10,11 @@ interface SidebarProps {
   onExit: () => void;
   /** Unread chat count shown as a badge on the Chat nav item. Omit/0 renders no badge. */
   unreadCount?: number;
+  /** Shows a small dot on the Tournament nav item when the user has an active match/round waiting. */
+  hasActivePlay?: boolean;
 }
 
-const Sidebar = ({ activeItem, onNavigate, onExit, unreadCount }: SidebarProps) => {
+const Sidebar = ({ activeItem, onNavigate, onExit, unreadCount, hasActivePlay }: SidebarProps) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const navItems: { id: NavItem; label: string; icon: typeof Home }[] = [
@@ -83,6 +85,9 @@ const Sidebar = ({ activeItem, onNavigate, onExit, unreadCount }: SidebarProps) 
                     <span className="ml-auto flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-accent text-accent-foreground text-[11px] font-semibold">
                       {unreadCount > 99 ? "99+" : unreadCount}
                     </span>
+                  )}
+                  {item.id === "tournament" && hasActivePlay && (
+                    <span className="ml-auto w-2.5 h-2.5 rounded-full bg-accent animate-pulse" />
                   )}
                 </button>
               </li>

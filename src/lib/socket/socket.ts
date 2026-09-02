@@ -5,6 +5,17 @@ let socket: Socket | null = null;
 let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 const HEARTBEAT_INTERVAL_MS = 30_000; // 30 seconds — well within the server's 120s timeout
 
+/** Retries a connection that was rejected for auth, once a token appears. */
+let authRetryTimer: ReturnType<typeof setInterval> | null = null;
+const AUTH_RETRY_INTERVAL_MS = 1_000;
+
+const clearAuthRetry = () => {
+  if (authRetryTimer) {
+    clearInterval(authRetryTimer);
+    authRetryTimer = null;
+  }
+};
+
 /** Listeners that want to know about connection state changes */
 type ConnectionListener = (connected: boolean) => void;
 const connectionListeners = new Set<ConnectionListener>();
@@ -39,10 +50,21 @@ const stopHeartbeat = () => {
 
 export const getSocket = (): Socket => {
   if (!socket) {
-    const token = getToken();
-
     socket = io(import.meta.env.VITE_API_URL ?? "https://prod-api.aahbibi.com", {
-      auth: { token: token ?? "" },
+      // Read the token at every connection attempt, not once at creation.
+      //
+      // As a static value, the token was captured the first time getSocket()
+      // ran. AppLayout calls getSocket() in a mount effect to register the user
+      // as active, which can execute before the auth token is in sessionStorage
+      // — so the socket connected with an empty token, the server's auth
+      // middleware rejected it ("Authentication required"), and Socket.IO then
+      // retried forever reusing that same empty token. The socket never
+      // authenticated, so no server-pushed event (challenge_received above all)
+      // could ever arrive. Only a page refresh fixed it, because by then the
+      // token existed when the new socket was built. As a function, every
+      // reconnect picks up the current token, so the retry that follows a
+      // login actually succeeds.
+      auth: (cb) => cb({ token: getToken() ?? "" }),
       transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: Infinity,     // Never stop trying
@@ -55,6 +77,9 @@ export const getSocket = (): Socket => {
     socket.on("connect", () => {
       // console.log("[socket] connected:", socket?.id);
       notifyConnectionChange(true);
+
+      // Authenticated successfully — stop any auth-retry loop.
+      clearAuthRetry();
 
       // Start the application-level heartbeat to keep the server connection alive
       startHeartbeat();
@@ -94,6 +119,24 @@ export const getSocket = (): Socket => {
     socket.on("connect_error", (err) => {
       console.error("[socket] connect_error:", err.message);
       notifyConnectionChange(false);
+
+      // An auth rejection is not a transport problem, so the built-in backoff
+      // can't resolve it: it just replays the same handshake. The usual cause
+      // is connecting a moment before the token lands in sessionStorage. Retry
+      // explicitly once a token is actually available, so the connection
+      // recovers on its own instead of requiring a page refresh.
+      const isAuthFailure = /auth|token/i.test(err.message);
+      if (isAuthFailure && !authRetryTimer) {
+        authRetryTimer = setInterval(() => {
+          if (!getToken()) return;      // still nothing to authenticate with
+          if (socket?.connected) {      // recovered by other means
+            clearAuthRetry();
+            return;
+          }
+          console.log("[socket] token now present, retrying authentication");
+          socket?.connect();
+        }, AUTH_RETRY_INTERVAL_MS);
+      }
     });
 
     socket.on("disconnect", (reason) => {
@@ -195,6 +238,7 @@ export const flushTournamentAnswerQueue = () => {
 /** Call on logout / session end */
 export const disconnectSocket = (): void => {
   stopHeartbeat();
+  clearAuthRetry(); // never leave the retry loop running past an intentional disconnect
   if (socket) {
     socket.disconnect();
     socket = null;

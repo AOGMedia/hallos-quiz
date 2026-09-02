@@ -136,8 +136,16 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
                   // knockout/battle_royale it's derived from the final entrant
                   // count, so it genuinely can't be known in advance. It used
                   // to render literally as "null rounds".
+                  //
+                  // currentRound is genuinely 0 for the brief in_progress gap
+                  // between the status flip and round 1 actually being created
+                  // (self-heals within ~2 min via a backend sweep) — `|| 1`
+                  // used to mask that as "Round 1", lying about a tournament
+                  // that hadn't actually started its first round yet.
                   value: t.status === "in_progress"
-                    ? `Round ${t.currentRound || 1}/${t.totalRounds ?? "?"}`
+                    ? t.currentRound > 0
+                      ? `Round ${t.currentRound}/${t.totalRounds ?? "?"}`
+                      : "Starting…"
                     : t.totalRounds != null
                       ? `${t.totalRounds} rounds`
                       : "TBD",

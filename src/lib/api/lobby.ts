@@ -246,3 +246,54 @@ export const getActiveMatch = async (): Promise<{ success: boolean; match: Accep
   );
   return res.data;
 };
+
+// ── Live Now feed ─────────────────────────────────────────────────────────────
+
+export interface LiveMatchPlayer {
+  userId: number;
+  nickname: string;
+  avatarUrl: string | null;
+  score: number;
+  answered: number;
+}
+
+export interface LiveMatch {
+  matchId: string;
+  matchType: "lobby" | "tournament";
+  tournamentName: string | null;
+  roundNumber: number | null;
+  players: LiveMatchPlayer[];
+  totalQuestions: number | null;
+  startedAt: number;
+  updatedAt: number;
+}
+
+export interface LiveMatchResultPlayer {
+  userId: number;
+  nickname: string;
+  avatarUrl: string | null;
+  score: number;
+}
+
+export interface LiveMatchResult {
+  matchId: string;
+  matchType: "lobby" | "tournament";
+  tournamentName: string | null;
+  roundNumber: number | null;
+  winnerId: number | null;
+  players: LiveMatchResultPlayer[];
+  endedAt: number;
+}
+
+export const getLiveMatches = async (): Promise<{
+  success: boolean;
+  matches: LiveMatch[];
+  recentResults: LiveMatchResult[];
+}> => {
+  const res = await apiClient.get<{
+    success: boolean;
+    matches: LiveMatch[];
+    recentResults: LiveMatchResult[];
+  }>("/api/quiz/lobby/live-matches");
+  return res.data;
+};

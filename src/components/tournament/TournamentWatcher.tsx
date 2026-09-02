@@ -7,6 +7,7 @@ import { joinMatch } from "@/lib/socket/emitters";
 import { leaveTournament } from "@/lib/socket/tournamentEmitters";
 import { getToken } from "@/store/authStore";
 import { getMyUserId } from "@/lib/auth/currentUser";
+import { TOURNAMENT_KEYS } from "@/hooks/useTournament";
 import type {
   ChallengeAcceptedPayload,
   RoundStartedPayload,
@@ -62,6 +63,9 @@ const TournamentWatcher = () => {
     const refreshTournament = (tournamentId: string) => {
       queryClient.invalidateQueries({ queryKey: ["tournaments", "leaderboard", tournamentId] });
       queryClient.invalidateQueries({ queryKey: ["tournaments", "detail", tournamentId] });
+      // Covers the "no longer have something to join" cases too — elimination,
+      // forfeit, and tournament end all route through here.
+      queryClient.invalidateQueries({ queryKey: TOURNAMENT_KEYS.activePlay });
     };
 
     const handleChallengeAccepted = (payload: ChallengeAcceptedPayload) => {
@@ -81,6 +85,7 @@ const TournamentWatcher = () => {
         roundNumber: payload.roundNumber,
       }));
       sessionStorage.setItem("currentTournamentId", payload.tournamentId);
+      queryClient.invalidateQueries({ queryKey: TOURNAMENT_KEYS.activePlay });
 
       joinMatch(payload.matchId);
       toast.success("Your tournament match is ready!");
@@ -108,6 +113,7 @@ const TournamentWatcher = () => {
       }));
       sessionStorage.setItem("currentTournamentId", payload.tournamentId);
       sessionStorage.removeItem("currentTournamentBye"); // a real round supersedes any bye
+      queryClient.invalidateQueries({ queryKey: TOURNAMENT_KEYS.activePlay });
 
       toast.success(`Round ${payload.roundNumber} is starting!`);
       navigate("/tournament/play");

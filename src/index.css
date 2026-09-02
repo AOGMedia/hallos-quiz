@@ -200,3 +200,29 @@
 .animate-slide-in {
   animation: slide-in 0.4s ease-out forwards;
 }
+
+/* Results ticker: the track holds the list twice, so translating exactly -50%
+   lands on a pixel-identical frame and the loop is seamless. */
+@keyframes ticker-glide {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-ticker {
+  animation: ticker-glide linear infinite;
+  will-change: transform;
+}
+
+/* Pausing on hover lets someone actually read a result that catches their eye. */
+.ticker-track:hover .animate-ticker {
+  animation-play-state: paused;
+}
+
+/* Respect users who ask for less motion: hold the strip still rather than
+   gliding it. The content stays fully readable, just not animated. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-ticker {
+    animation: none;
+    transform: none;
+  }
+}

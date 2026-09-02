@@ -6,6 +6,7 @@ import LobbyPlayerCard from "@/components/lobby/LobbyPlayerCard";
 import ChallengeModal from "@/components/modals/ChallengeModal";
 import ChallengeStatusModal from "@/components/modals/ChallengeStatusModal";
 import ChallengeBoardTab from "@/components/lobby/ChallengeBoardTab";
+import LiveMatchesPanel from "@/components/lobby/LiveMatchesPanel";
 import InviteFriendModal from "@/components/invite/InviteFriendModal";
 import { soundEngine } from "@/lib/soundEngine";
 import { useLobbyPlayers } from "@/hooks/useLobbyPlayers";
@@ -14,10 +15,9 @@ import { useGetOrCreateConversation } from "@/hooks/useChat";
 import type { LobbyPlayer } from "@/lib/api/lobby";
 import { getSocket } from "@/lib/socket/socket";
 import {
-  onChallengeAccepted, offChallengeAccepted,
-  onChallengeDeclined, offChallengeDeclined,
-  onChallengeTimeout, offChallengeTimeout,
-  onChallengeCounter, offChallengeCounter,
+  onChallengeDeclinedScoped,
+  onChallengeTimeoutScoped,
+  onChallengeCounterScoped,
 } from "@/lib/socket/events";
 import { joinMatch } from "@/lib/socket/emitters";
 
@@ -101,44 +101,71 @@ const Lobby = () => {
       setTimeout(() => navigateRef.current("/game"), 800);
     };
 
-    const registerListeners = () => {
-      offChallengeAccepted();
-      offChallengeDeclined();
-      offChallengeTimeout();
-      offChallengeCounter();
-      onChallengeAccepted(handleChallengeAccepted);
-      onChallengeDeclined((payload) => {
-        if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
-        soundEngine.stopBellLoop();
-        setModalState("rejected");
-      });
-      onChallengeTimeout((payload) => {
-        if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
-        soundEngine.stopBellLoop();
-        setModalState("timeout");
-      });
-      onChallengeCounter((payload) => {
-        if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
-        // Store the counter-offer's new challengeId so we can accept/decline it
-        setCounterOffer({ amount: payload.newWagerAmount, opponentNickname: payload.opponentNickname, challengeId: payload.challengeId });
-        setModalState("counter" as ModalState);
-      });
+    // Scoped subscriptions, bound once. These previously used the by-name
+    // helpers and were re-registered inside a `connect` handler, which meant
+    // a decline/timeout/counter arriving mid-teardown was dropped and the
+    // challenger's modal never updated — they sat on "waiting" forever.
+    // Socket.IO keeps client listeners across reconnects, so there is nothing
+    // to re-register: binding once is both sufficient and race-free.
+    const handleDeclined = (payload: import("@/lib/socket/events").ChallengeDeclinedPayload) => {
+      if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
+      soundEngine.stopBellLoop();
+      setModalState("rejected");
     };
 
-    registerListeners();
+    const handleTimeout = (payload: import("@/lib/socket/events").ChallengeTimeoutPayload) => {
+      if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
+      soundEngine.stopBellLoop();
+      setModalState("timeout");
+    };
 
-    // Re-register on socket reconnect so we don't miss events after disconnect
+    const handleCounter = (payload: import("@/lib/socket/events").ChallengeCounterPayload) => {
+      if (activeChallengeIdRef.current && activeChallengeIdRef.current !== payload.challengeId) return;
+      // Store the counter-offer's new challengeId so we can accept/decline it
+      setCounterOffer({ amount: payload.newWagerAmount, opponentNickname: payload.opponentNickname, challengeId: payload.challengeId });
+      setModalState("counter" as ModalState);
+    };
+
+    const unsubDeclined = onChallengeDeclinedScoped(handleDeclined);
+    const unsubTimeout = onChallengeTimeoutScoped(handleTimeout);
+    const unsubCounter = onChallengeCounterScoped(handleCounter);
+
+    // challenge_accepted is bound directly to the socket with its own handler
+    // reference — deliberately NOT via the shared onChallengeAccepted /
+    // offChallengeAccepted helpers used for the other three events above.
+    // offChallengeAccepted() calls socket.off("challenge_accepted") with no
+    // handler argument, which removes EVERY listener bound to that event name,
+    // not just Lobby's own. TournamentWatcher (mounted once, globally, for the
+    // whole session) also listens for "challenge_accepted" to route knockout
+    // tournament matches into /game. Calling offChallengeAccepted() here — on
+    // every Lobby mount AND unmount — was silently deleting TournamentWatcher's
+    // listener the first time a user navigated away from /lobby, which is the
+    // default landing route for every registered user. After that, the server
+    // still emitted challenge_accepted correctly for a tournament match, but
+    // nothing on the client was left listening for it, so the tournament
+    // detail screen just sat there with no navigation into the match.
+    // Binding/removing by reference here avoids touching any other
+    // component's listeners, and Socket.IO's client-side listener list
+    // persists across reconnects, so there's no need to re-bind on "connect"
+    // the way the other three events below (harmlessly, since Lobby is their
+    // only consumer) already do.
     const socket = getSocket();
-    socket.on("connect", () => {
-      registerListeners();
-    });
+    socket.on("challenge_accepted", handleChallengeAccepted);
 
+    // NOTE: there was previously a `socket.on("connect", ...)` here that
+    // re-registered the listeners on every reconnect, with cleanup attempting
+    // `socket.off("connect", registerListeners)`. That removed nothing: the
+    // registered handler was an anonymous arrow, not `registerListeners`, so
+    // the references never matched. Every Lobby mount leaked another `connect`
+    // handler, and each one re-ran the by-name teardown, so a reconnect could
+    // wipe listeners belonging to other components. It is gone entirely rather
+    // than repaired, because Socket.IO preserves client-side listeners across
+    // reconnects, making the whole re-registration unnecessary.
     return () => {
-      socket.off("connect", registerListeners);
-      offChallengeAccepted();
-      offChallengeDeclined();
-      offChallengeTimeout();
-      offChallengeCounter();
+      socket.off("challenge_accepted", handleChallengeAccepted);
+      unsubDeclined();
+      unsubTimeout();
+      unsubCounter();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -162,6 +189,15 @@ const Lobby = () => {
       return; // Not our match — ignore
     }
 
+    // Never start a match we can't name a real opponent for. This used to fall
+    // back to `{ name: "Opponent", avatar: "" }`, which put the player into a
+    // real, wagered game against nobody — no answers could ever arrive from
+    // "them", so it hung until the AFK/forfeit sweep resolved it.
+    if (!match.challenger?.userId) {
+      console.warn("[Lobby] Match arrived without a real opponent — not starting", match.matchId);
+      return;
+    }
+
     soundEngine.stopBellLoop();
     soundEngine.play("start_challenge");
     setModalState("accepted");
@@ -170,9 +206,7 @@ const Lobby = () => {
     sessionStorage.setItem("currentMatch", JSON.stringify({
       matchId: match.matchId,
       player1: { name: userProfile.nickname, avatar: userProfile.avatar },
-      player2: match.challenger
-        ? { userId: match.challenger.userId, name: match.challenger.nickname, avatar: match.challenger.avatarUrl }
-        : { name: "Opponent", avatar: "" },
+      player2: { userId: match.challenger.userId, name: match.challenger.nickname, avatar: match.challenger.avatarUrl },
       questions: match.questions,
       challengerId: match.challengerId,
     }));
@@ -260,6 +294,9 @@ const Lobby = () => {
   return (
     <>
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col gap-4">
+        {/* Live matches happening right now — renders nothing when idle */}
+        <LiveMatchesPanel />
+
         {/* Tab switcher */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex gap-1.5">
@@ -365,6 +402,12 @@ const Lobby = () => {
                 console.warn("[Lobby] Challenge accepted but no questions received");
                 return;
               }
+              // Same rule as the accepted-match handler above: a match without
+              // a real, identified opponent is not playable, so don't enter it.
+              if (!challenger?.userId) {
+                console.warn("[Lobby] Challenge accepted without a real opponent — not starting", matchId);
+                return;
+              }
               soundEngine.play("start_challenge");
               const stored = sessionStorage.getItem("userProfile");
               const me = stored ? JSON.parse(stored) : { nickname: "You", avatar: "" };
@@ -372,11 +415,9 @@ const Lobby = () => {
               sessionStorage.setItem("currentMatch", JSON.stringify({
                 matchId,
                 player1: { name: me.nickname, avatar: me.avatar },
-                player2: challenger
-                  ? { userId: challenger.userId, name: challenger.nickname, avatar: challenger.avatarUrl }
-                  : { name: "Opponent", avatar: "" },
+                player2: { userId: challenger.userId, name: challenger.nickname, avatar: challenger.avatarUrl },
                 questions: questions ?? [],
-                challengerId: challenger?.userId,
+                challengerId: challenger.userId,
               }));
               // Join match room immediately
               joinMatch(matchId);

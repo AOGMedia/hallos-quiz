@@ -7,12 +7,10 @@ import IncomingChallengeModal from "@/components/modals/IncomingChallengeModal";
 import { avatars } from "@/data/gameData";
 import { getSocket } from "@/lib/socket/socket";
 import {
-  onIncomingChallenge,
-  offIncomingChallenge,
-  onPlayersUpdated,
-  offPlayersUpdated,
-  onMatchStateRestored,
-  offMatchStateRestored,
+  onIncomingChallengeScoped,
+  onChallengeCancelledScoped,
+  onPlayersUpdatedScoped,
+  onMatchStateRestoredScoped,
   type IncomingChallengePayload,
 } from "@/lib/socket/events";
 import { joinMatch } from "@/lib/socket/emitters";
@@ -21,6 +19,8 @@ import { fetchQuizProfile } from "@/lib/api/quizProfile";
 import { useAcceptChallenge, useDeclineChallenge, useCounterOffer } from "@/hooks/useChallenge";
 import { useChutaBalance } from "@/hooks/useChutaWallet";
 import { useUnreadCount } from "@/hooks/useChat";
+import { useMyActiveTournamentPlay } from "@/hooks/useTournament";
+import ActiveTournamentPlayBanner from "@/components/tournament/ActiveTournamentPlayBanner";
 import { useChutaWalletStore } from "@/store/chutaWalletStore";
 import { useQuizProfileStore } from "@/store/quizProfileStore";
 import { useOnlineCountStore } from "@/store/onlineCountStore";
@@ -101,6 +101,7 @@ const AppLayout = () => {
   // above the `if (!profile) return null` guard below (unlike some of this
   // component's pre-existing effects) so they're never called conditionally.
   const { data: unreadData } = useUnreadCount();
+  const { data: activePlayData } = useMyActiveTournamentPlay();
   useEffect(() => {
     return onChatUnreadUpdateScoped(() => {
       queryClient.invalidateQueries({ queryKey: ["chat", "unreadCount"] });
@@ -164,28 +165,53 @@ const AppLayout = () => {
     }
   }, [hasProfile, profileNickname]);
 
-  // Listen for incoming challenges globally
+  // Listen for incoming challenges globally.
+  //
+  // Mounted once for the whole session, deliberately. This effect used to
+  // depend on `location.pathname` and `profileNickname`, so it tore down and
+  // re-registered on every navigation and again the moment a returning user's
+  // nickname resolved. Because the cleanup used the by-name helpers
+  // (offIncomingChallenge -> socket.off("challenge_received")), which remove
+  // EVERY listener for an event rather than just this one, any challenge that
+  // arrived inside that teardown window was dropped entirely: the modal simply
+  // never appeared and the user had to refresh to see it. Scoped subscriptions
+  // plus an empty dependency array mean the listener is bound once and stays
+  // bound, so an inbound challenge is always caught.
+  //
+  // The `hasProfile` guard was also removed: it delayed registration until the
+  // profile resolved, leaving a window where challenges were missed. State
+  // setters are safe to call regardless, and the modal only renders once
+  // userProfile exists.
   useEffect(() => {
-    if (!hasProfile) return;
+    const unsubChallenge = onIncomingChallengeScoped((payload) => setIncomingChallenge(payload));
 
-    onIncomingChallenge((payload) => setIncomingChallenge(payload));
-    onPlayersUpdated((payload) => {
+    // The challenger withdrew before we answered. The server has always sent
+    // this and nothing ever listened, so the invite modal stayed on screen for
+    // a challenge that no longer existed — accepting it just failed with an
+    // error. Dismiss it, but only if it's the one currently being shown.
+    const unsubCancelled = onChallengeCancelledScoped(({ challengeId }) => {
+      setIncomingChallenge((current) =>
+        current && current.challengeId === challengeId ? null : current
+      );
+    });
+
+    const unsubPlayers = onPlayersUpdatedScoped((payload) => {
       setOnlineCount(payload.onlineCount);
       useOnlineCountStore.getState().setCount(payload.onlineCount);
     });
-
     // Global resilience: if server says we are in a match but we are in AppLayout,
     // we ignore it and let the user stay here (they abandoned the match).
-    onMatchStateRestored((_match) => {
+    const unsubRestored = onMatchStateRestoredScoped(() => {
       // Intentionally ignored — user is in dashboard, not in a game
     });
 
     return () => {
-      offIncomingChallenge();
-      offPlayersUpdated();
-      offMatchStateRestored();
+      unsubChallenge();
+      unsubCancelled();
+      unsubPlayers();
+      unsubRestored();
     };
-  }, [location.pathname, navigate, hasProfile, profileNickname]);
+  }, []);
 
   // If user navigates ANYWHERE within AppLayout, they are by definition not in a game.
   // Erase any lingering match state.
@@ -222,6 +248,7 @@ const AppLayout = () => {
         onNavigate={handleNavigate}
         onExit={() => setShowExit(true)}
         unreadCount={unreadData?.unreadCount}
+        hasActivePlay={!!activePlayData && activePlayData.type !== "none"}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -234,6 +261,7 @@ const AppLayout = () => {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
         />
+        <ActiveTournamentPlayBanner />
         {/* Each child route renders here */}
         <Outlet context={{ userProfile, searchQuery }} />
       </div>

@@ -137,12 +137,19 @@ export interface ChallengeCounterPayload {
   opponentNickname: string;
 }
 
-export const onChallengeAccepted = (cb: (data: ChallengeAcceptedPayload) => void): void => {
-  getSocket().on("challenge_accepted", cb);
-};
-export const offChallengeAccepted = (): void => {
-  getSocket().off("challenge_accepted");
-};
+// Deliberately no onChallengeAccepted/offChallengeAccepted helpers here.
+// "challenge_accepted" has two independent consumers — Lobby.tsx (1v1
+// challenges) and TournamentWatcher.tsx (knockout tournament matches) — and
+// this file's off*() helpers remove ALL listeners for an event name with no
+// way to scope to one caller. That combination is exactly what caused a real
+// production bug: Lobby's cleanup calling the equivalent of
+// `socket.off("challenge_accepted")` silently deleted TournamentWatcher's
+// global listener, so tournament matches stopped navigating players into
+// /game for the rest of the session. Both consumers now bind/unbind directly
+// via `socket.on("challenge_accepted", handlerRef)` /
+// `socket.off("challenge_accepted", handlerRef)` with their own handler
+// reference instead — safe regardless of how many other listeners exist for
+// the same event. Do not reintroduce a shared on/off pair for this event.
 
 export const onChallengeDeclined = (cb: (data: ChallengeDeclinedPayload) => void): void => {
   getSocket().on("challenge_declined", cb);
@@ -403,5 +410,144 @@ export const onTournamentAnswerRecordedScoped = (
   const socket = getSocket();
   socket.on("tournament_answer_recorded", cb);
   return () => { socket.off("tournament_answer_recorded", cb); };
+};
+
+// ── Live Now feed ─────────────────────────────────────────────────────────────
+// App-wide broadcasts (io.emit) of matches in play, for the lobby's Live Now
+// panel. Carry nickname/score/progress only — never question text or answers.
+
+export interface LiveMatchPlayerPayload {
+  userId: number;
+  nickname: string;
+  avatarUrl: string | null;
+  score: number;
+  answered: number;
+}
+
+export interface LiveMatchStartedPayload {
+  matchId: string;
+  matchType: "lobby" | "tournament";
+  tournamentName: string | null;
+  roundNumber: number | null;
+  players: LiveMatchPlayerPayload[];
+  totalQuestions: number | null;
+  startedAt: number;
+  updatedAt: number;
+}
+
+export interface LiveMatchProgressPayload {
+  matchId: string;
+  players: LiveMatchPlayerPayload[];
+  totalQuestions: number | null;
+}
+
+export interface LiveMatchEndedPayload {
+  matchId: string;
+  winnerId: number | null;
+}
+
+export const onLiveMatchStartedScoped = (
+  cb: (data: LiveMatchStartedPayload) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("live_match_started", cb);
+  return () => { socket.off("live_match_started", cb); };
+};
+
+export const onLiveMatchProgressScoped = (
+  cb: (data: LiveMatchProgressPayload) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("live_match_progress", cb);
+  return () => { socket.off("live_match_progress", cb); };
+};
+
+export const onLiveMatchEndedScoped = (
+  cb: (data: LiveMatchEndedPayload) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("live_match_ended", cb);
+  return () => { socket.off("live_match_ended", cb); };
+};
+
+// ── Challenge lifecycle, scoped ───────────────────────────────────────────────
+// Scoped equivalents of the by-name on*/off* pairs above. The by-name versions
+// detach EVERY listener for an event, so a component that re-registers on a
+// dependency change can silently drop events during the teardown window (and
+// wipe other components' listeners for the same event). Prefer these.
+
+export const onIncomingChallengeScoped = (
+  cb: (data: IncomingChallengePayload) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("challenge_received", cb);
+  return () => { socket.off("challenge_received", cb); };
+};
+
+export const onChallengeDeclinedScoped = (
+  cb: (data: ChallengeDeclinedPayload) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("challenge_declined", cb);
+  return () => { socket.off("challenge_declined", cb); };
+};
+
+export const onChallengeTimeoutScoped = (
+  cb: (data: ChallengeTimeoutPayload) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("challenge_timeout", cb);
+  return () => { socket.off("challenge_timeout", cb); };
+};
+
+export const onChallengeCounterScoped = (
+  cb: (data: ChallengeCounterPayload) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("challenge_counter", cb);
+  return () => { socket.off("challenge_counter", cb); };
+};
+
+export const onChallengeCancelledScoped = (
+  cb: (data: { challengeId: string }) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("challenge_cancelled", cb);
+  return () => { socket.off("challenge_cancelled", cb); };
+};
+
+export const onPlayersUpdatedScoped = (
+  cb: (data: PlayersUpdatedPayload) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("players_updated", cb);
+  return () => { socket.off("players_updated", cb); };
+};
+
+export const onMatchStateRestoredScoped = (
+  cb: (data: ChallengeAcceptedPayload) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("match_state_restored", cb);
+  return () => { socket.off("match_state_restored", cb); };
+};
+
+export interface LiveMatchResultPayload {
+  matchId: string;
+  matchType: "lobby" | "tournament";
+  tournamentName: string | null;
+  roundNumber: number | null;
+  winnerId: number | null;
+  players: Array<{ userId: number; nickname: string; avatarUrl: string | null; score: number }>;
+  endedAt: number;
+}
+
+/** A match that just finished, with final scores — feeds the results ticker. */
+export const onLiveMatchResultScoped = (
+  cb: (data: LiveMatchResultPayload) => void
+): (() => void) => {
+  const socket = getSocket();
+  socket.on("live_match_result", cb);
+  return () => { socket.off("live_match_result", cb); };
 };
 
