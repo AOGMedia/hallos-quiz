@@ -9,6 +9,7 @@ import {
   type UpdateProfilePayload,
 } from "@/lib/api/quizProfile";
 import { useQuizProfileStore } from "@/store/quizProfileStore";
+import { getMyUserId } from "@/lib/auth/currentUser";
 
 export const PROFILE_KEYS = {
   profile: (userId: number) => ["quiz", "profile", userId] as const,
@@ -45,9 +46,13 @@ export function useRegisterQuiz() {
     mutationFn: (payload: RegisterQuizPayload) => registerQuizUser(payload),
     onSuccess: (data) => {
       if (data.success) {
-        // Seed a minimal profile into the store immediately
+        // Seed a minimal profile into the store immediately.
+        // userId must be the real signed-in id: the store stamps ownership from
+        // it, and a placeholder 0 would mark this profile as belonging to user
+        // 0 — so hasQuizProfile() would reject it and bounce the user straight
+        // back to setup right after they registered.
         setProfile({
-          userId: 0,
+          userId: getMyUserId() ?? 0,
           nickname: data.nickname,
           avatarUrl: data.avatarUrl,
           lobbyStats: { totalMatches: 0, wins: 0, losses: 0, winRate: 0, totalWinnings: 0 },

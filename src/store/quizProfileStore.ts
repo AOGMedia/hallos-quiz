@@ -32,14 +32,35 @@ export const useQuizProfileStore = create<QuizProfileState>()(
         set({
           profile,
           isRegistered: true,
-          // Prefer the id the server returned; fall back to the token's.
-          ownerUserId: profile.userId ?? getMyUserId(),
+          // Prefer the id the server returned, but only if it's a real one.
+          // Some callers seed a placeholder `userId: 0` before the server has
+          // echoed the real value; recording 0 as the owner would make this
+          // profile fail its own ownership check. `> 0` rather than a nullish
+          // check, precisely so 0 falls through to the token's id.
+          ownerUserId:
+            typeof profile.userId === "number" && profile.userId > 0
+              ? profile.userId
+              : getMyUserId(),
         }),
       clearProfile: () => set({ profile: null, isRegistered: false, ownerUserId: null }),
     }),
     { name: "quiz-profile" } // persisted to localStorage
   )
 );
+
+/**
+ * Which user a persisted profile belongs to, or null if it can't be
+ * established. Treats a non-positive id as "unknown" rather than a real owner,
+ * so a placeholder `userId: 0` never masquerades as an account.
+ */
+function resolveOwner(
+  ownerUserId: number | null | undefined,
+  profileUserId: number | null | undefined
+): number | null {
+  if (typeof ownerUserId === "number" && ownerUserId > 0) return ownerUserId;
+  if (typeof profileUserId === "number" && profileUserId > 0) return profileUserId;
+  return null;
+}
 
 /**
  * Does the *currently signed-in* user have a quiz profile?
@@ -61,7 +82,7 @@ export function hasQuizProfile(): boolean {
   const { profile, isRegistered, ownerUserId } = useQuizProfileStore.getState();
 
   if (isRegistered) {
-    const owner = ownerUserId ?? profile?.userId ?? null;
+    const owner = resolveOwner(ownerUserId, profile?.userId);
     if (owner === currentUserId) return true;
     // Owned by someone else — fall through rather than returning true.
   }
@@ -95,7 +116,7 @@ export function clearProfileIfNotOwnedByCurrentUser(): void {
   const { profile, isRegistered, ownerUserId } = useQuizProfileStore.getState();
   if (!isRegistered && !profile) return;
 
-  const owner = ownerUserId ?? profile?.userId ?? null;
+  const owner = resolveOwner(ownerUserId, profile?.userId);
   if (owner !== currentUserId) {
     useQuizProfileStore.getState().clearProfile();
     // sessionStorage mirrors the same identity for AppLayout's fast path.

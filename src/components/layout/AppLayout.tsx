@@ -231,7 +231,26 @@ const AppLayout = () => {
 
   // Every hook above runs unconditionally — this guard must stay below all of
   // them so hook order is identical on every render.
-  if (!userProfile) return null;
+  //
+  // Rendering a spinner rather than `null`: the redirect to "/" runs in an
+  // effect, so there is at least one paint before it takes hold, and returning
+  // null painted that frame as an empty black screen. Any hiccup in the
+  // redirect left the user staring at nothing with no way out, which is exactly
+  // what the "Go to Lobby" button used to trigger.
+  if (!userProfile) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-muted-foreground">Loading your profile…</p>
+        <button
+          onClick={() => navigate("/", { replace: true })}
+          className="text-xs text-muted-foreground underline hover:text-foreground transition-colors"
+        >
+          Taking too long? Go to setup
+        </button>
+      </div>
+    );
+  }
 
   const activeNav: NavItem =
     PATH_TO_NAV[location.pathname] ?? "lobby";
