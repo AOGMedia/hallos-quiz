@@ -8,12 +8,12 @@ import { soundEngine } from "@/lib/soundEngine";
 import { useNicknameCheck, useRegisterQuiz } from "@/hooks/useQuizProfile";
 import { getAvatarUrl, fetchQuizProfile, type DiceBearStyle } from "@/lib/api/quizProfile";
 import { useQuizProfileStore } from "@/store/quizProfileStore";
+import { getMyUserId } from "@/lib/auth/currentUser";
 
 const NICKNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
-  const setProfile = useQuizProfileStore((s) => s.setProfile);
 
   const [nickname, setNickname] = useState("");
   const [style, setStyle] = useState<DiceBearStyle>("avataaars");
@@ -21,6 +21,10 @@ const ProfileSetup = () => {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [validationError, setValidationError] = useState("");
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [isCheckingExisting, setIsCheckingExisting] = useState(false);
+  // Kept separate from validationError, which renders up beside the form —
+  // feedback for this button belongs next to the button.
+  const [existingCheckError, setExistingCheckError] = useState("");
 
   // Live nickname availability check (debounced inside hook)
   const {
@@ -230,33 +234,57 @@ const ProfileSetup = () => {
           {/* Already registered link */}
           <button
             type="button"
-            onClick={() => {
-              // Fetch profile using JWT userId and go straight to lobby
+            disabled={isCheckingExisting}
+            onClick={async () => {
+              // Only enter the lobby if this user actually has a profile.
+              //
+              // Every branch here used to navigate to /lobby regardless — including
+              // the failure paths. AppLayout renders nothing without a resolved
+              // identity and bounces back to "/", so an unregistered user landed on
+              // a blank screen (or a redirect loop) instead of being told to finish
+              // setting up. Now: registered -> lobby; not registered -> stay here
+              // with an explanation.
+              setExistingCheckError("");
+              setIsCheckingExisting(true);
               try {
-                const token = sessionStorage.getItem("auth_token");
-                if (!token) { navigate("/lobby"); return; }
-                const payload = JSON.parse(atob(token.split(".")[1]));
-                const userId = payload?.id;
-                if (userId) {
-                  fetchQuizProfile(userId).then((res) => {
-                    if (res.profile) {
-                      const p = { nickname: res.profile.nickname, avatar: res.profile.avatarUrl };
-                      sessionStorage.setItem("userProfile", JSON.stringify(p));
-                      useQuizProfileStore.getState().setProfile(res.profile);
-                    }
-                    navigate("/lobby");
-                  }).catch(() => navigate("/lobby"));
-                } else {
-                  navigate("/lobby");
+                const userId = getMyUserId();
+                if (!userId) {
+                  setExistingCheckError("You're signed out. Please sign in again to continue.");
+                  return;
                 }
-              } catch {
-                navigate("/lobby");
+
+                const res = await fetchQuizProfile(userId);
+                if (res.profile?.nickname) {
+                  const p = { nickname: res.profile.nickname, avatar: res.profile.avatarUrl };
+                  sessionStorage.setItem("userProfile", JSON.stringify(p));
+                  useQuizProfileStore.getState().setProfile(res.profile);
+                  navigate("/lobby");
+                  return;
+                }
+                setExistingCheckError("No quiz identity found for your account — pick a nickname and avatar above to get started.");
+              } catch (err) {
+                // 404 is the expected "not registered yet" answer, not a fault.
+                const status = (err as { status?: number })?.status;
+                setExistingCheckError(
+                  status === 404
+                    ? "You haven't set up a quiz identity yet — pick a nickname and avatar above to get started."
+                    : "Couldn't check your profile just now. Please try again."
+                );
+              } finally {
+                setIsCheckingExisting(false);
               }
             }}
-            className="text-lg text-muted-foreground hover:text-primary transition-colors text-center w-full"
+            className="text-lg text-muted-foreground hover:text-primary transition-colors text-center w-full disabled:opacity-50"
           >
-            Already registered? <span className="text-primary underline">Go to Lobby</span>
+            {isCheckingExisting ? (
+              "Checking your profile..."
+            ) : (
+              <>Already registered? <span className="text-primary underline">Go to Lobby</span></>
+            )}
           </button>
+          {existingCheckError && (
+            <p className="text-xs text-red-400 -mt-2 text-center">{existingCheckError}</p>
+          )}
         </div>
       </div>
 
