@@ -22,7 +22,7 @@ import { useUnreadCount } from "@/hooks/useChat";
 import { useMyActiveTournamentPlay } from "@/hooks/useTournament";
 import ActiveTournamentPlayBanner from "@/components/tournament/ActiveTournamentPlayBanner";
 import { useChutaWalletStore } from "@/store/chutaWalletStore";
-import { useQuizProfileStore } from "@/store/quizProfileStore";
+import { useQuizProfileStore, hasQuizProfile } from "@/store/quizProfileStore";
 import { useOnlineCountStore } from "@/store/onlineCountStore";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -47,35 +47,44 @@ const NAV_TO_PATH: Record<NavItem, string> = {
   guide:       "/guide",
 };
 
+/**
+ * The signed-in user's quiz identity, or null if they haven't set one up.
+ *
+ * Every source here is verified to belong to the *current* user. These stores
+ * are shared across accounts on one browser, and this function previously
+ * trusted whatever it found — so signing in as a second user showed the first
+ * user's nickname, and a persisted `isRegistered` with no profile produced a
+ * blank placeholder identity that the app then rendered as `Player_<id>`.
+ */
 function resolveProfile(): { nickname: string; avatar: string } | null {
-  try {
-    // Primary: sessionStorage (set during registration or previous visit)
-    const session = sessionStorage.getItem("userProfile");
-    if (session) return JSON.parse(session);
+  // hasQuizProfile() confirms the persisted store's owner matches the token.
+  if (!hasQuizProfile()) return null;
 
-    // Fallback: Zustand localStorage persist (returning registered user)
-    const persisted = localStorage.getItem("quiz-profile");
-    if (persisted) {
-      const { state } = JSON.parse(persisted);
-      if (state?.profile?.nickname) {
-        const profile = {
-          nickname: state.profile.nickname,
-          avatar: state.profile.avatarUrl ?? avatars[0],
-        };
-        sessionStorage.setItem("userProfile", JSON.stringify(profile));
-        return profile;
-      }
-      // isRegistered but no profile object yet — fetch from API on mount
-      // Use a placeholder for now; AppLayout will fetch the real profile
-      if (state?.isRegistered) {
-        const profile = { nickname: "", avatar: avatars[0], needsProfileFetch: true };
-        sessionStorage.setItem("userProfile", JSON.stringify(profile));
-        return profile;
-      }
+  try {
+    // Primary: sessionStorage (set during registration or previous visit).
+    // sessionStorage is per-tab and cleared by clearProfileIfNotOwnedByCurrentUser
+    // on startup when it belonged to someone else.
+    const session = sessionStorage.getItem("userProfile");
+    if (session) {
+      const parsed = JSON.parse(session);
+      if (parsed?.nickname) return parsed;
+    }
+
+    // Fallback: the Zustand store, already owner-verified above.
+    const { profile } = useQuizProfileStore.getState();
+    if (profile?.nickname) {
+      const resolved = {
+        nickname: profile.nickname,
+        avatar: profile.avatarUrl ?? avatars[0],
+      };
+      sessionStorage.setItem("userProfile", JSON.stringify(resolved));
+      return resolved;
     }
   } catch {
     // fall through
   }
+  // Registered per the store but no usable nickname anywhere: treat as not set
+  // up rather than inventing a blank identity, so the user is routed to setup.
   return null;
 }
 

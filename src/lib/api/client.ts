@@ -45,7 +45,21 @@ apiClient.interceptors.response.use(
     }
 
     console.error("API Error:", message, error.response?.data);
-    return Promise.reject(new Error(message));
+
+    // Reject with an Error carrying the HTTP status alongside the message.
+    // Callers have always read `.message`, and that is unchanged — but the
+    // status was previously discarded, so nothing could distinguish "404, this
+    // genuinely doesn't exist" from a transient failure. `response.status` is
+    // shaped to match axios so existing `err.response?.status` checks work too.
+    const enriched = new Error(message) as Error & {
+      status?: number;
+      response?: { status?: number; data?: unknown };
+    };
+    if (status !== undefined) {
+      enriched.status = status;
+      enriched.response = { status, data: error.response?.data };
+    }
+    return Promise.reject(enriched);
   }
 );
 

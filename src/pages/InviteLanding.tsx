@@ -19,22 +19,7 @@ import {
   getCachedClaimResult,
 } from "@/lib/invite/pendingInvite";
 import { getToken } from "@/store/authStore";
-import { useQuizProfileStore } from "@/store/quizProfileStore";
-
-/** True when the user has finished quiz onboarding (nickname + avatar registered). */
-function hasQuizProfile(): boolean {
-  if (useQuizProfileStore.getState().isRegistered) return true;
-  try {
-    const stored = sessionStorage.getItem("userProfile");
-    if (stored && JSON.parse(stored)?.nickname) return true;
-    const persisted = localStorage.getItem("quiz-profile");
-    if (!persisted) return false;
-    const { state } = JSON.parse(persisted);
-    return !!state?.isRegistered;
-  } catch {
-    return false;
-  }
-}
+import { hasQuizProfile } from "@/store/quizProfileStore";
 
 const Shell = ({ children }: { children: React.ReactNode }) => (
   <div className="min-h-screen bg-background relative flex flex-col">

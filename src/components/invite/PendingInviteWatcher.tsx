@@ -3,24 +3,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { UserPlus, X } from "lucide-react";
 import { getPendingInvite } from "@/lib/invite/pendingInvite";
 import { getToken } from "@/store/authStore";
-import { useQuizProfileStore } from "@/store/quizProfileStore";
+import { useQuizProfileStore, hasQuizProfile } from "@/store/quizProfileStore";
 
 /** Routes that own the full viewport — a floating banner would be intrusive. */
 const SUPPRESSED = ["/game", "/campaign/quiz", "/invite", "/", "/profile"];
-
-function hasQuizProfile(): boolean {
-  if (useQuizProfileStore.getState().isRegistered) return true;
-  try {
-    const stored = sessionStorage.getItem("userProfile");
-    if (stored && JSON.parse(stored)?.nickname) return true;
-    const persisted = localStorage.getItem("quiz-profile");
-    if (!persisted) return false;
-    const { state } = JSON.parse(persisted);
-    return !!state?.isRegistered;
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Passive resume prompt for an invite that was opened before the user finished
@@ -38,10 +24,13 @@ const PendingInviteWatcher = () => {
 
   // Re-evaluated on every navigation, which is exactly when it can become true.
   const token = getPendingInvite();
-  const isRegistered = useQuizProfileStore((s) => s.isRegistered);
+  // Subscribe so the banner re-evaluates when registration completes; the
+  // authoritative check is hasQuizProfile(), which also verifies the persisted
+  // profile belongs to the user currently signed in.
+  useQuizProfileStore((s) => s.isRegistered);
 
   if (dismissed || !token || !getToken()) return null;
-  if (!isRegistered && !hasQuizProfile()) return null;
+  if (!hasQuizProfile()) return null;
   if (location.pathname.startsWith("/invite/")) return null;
   if (SUPPRESSED.includes(location.pathname)) return null;
 
