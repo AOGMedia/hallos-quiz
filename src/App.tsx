@@ -22,18 +22,22 @@ import TournamentGameplay from "./pages/TournamentGameplay";
 import NotFound from "./pages/NotFound";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { getToken } from "./store/authStore";
+import { hasQuizProfile, clearProfileIfNotOwnedByCurrentUser } from "./store/quizProfileStore";
 
-/** Returns true if the user has a valid token + a persisted registered profile */
+// Drop any persisted profile belonging to a previously signed-in account before
+// the first render reads it, so a stale identity never reaches the UI.
+clearProfileIfNotOwnedByCurrentUser();
+
+/**
+ * Returns true if the user has a valid token AND a persisted profile that
+ * actually belongs to them. Previously this read `isRegistered` straight out of
+ * localStorage, which is shared across accounts — so signing in as a second
+ * user was redirected away from profile setup on the strength of the *first*
+ * user's flag, then landed in the app with a broken identity.
+ */
 function isRegisteredUser(): boolean {
   if (!getToken()) return false;
-  try {
-    const stored = localStorage.getItem("quiz-profile");
-    if (!stored) return false;
-    const { state } = JSON.parse(stored);
-    return !!state?.isRegistered;
-  } catch {
-    return false;
-  }
+  return hasQuizProfile();
 }
 
 /** Blocks access to onboarding/profile-setup for registered users */

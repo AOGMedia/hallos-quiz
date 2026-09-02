@@ -65,12 +65,20 @@ export function useRegisterQuiz() {
 
 export function useQuizProfileQuery(userId: number) {
   const setProfile = useQuizProfileStore((s) => s.setProfile);
+  const clearProfile = useQuizProfileStore((s) => s.clearProfile);
 
   const query = useQuery({
     queryKey: PROFILE_KEYS.profile(userId),
     queryFn: () => fetchQuizProfile(userId),
     enabled: userId > 0,
     staleTime: 60_000,
+    // A 404 means "this user has no quiz profile" — a definitive answer, not a
+    // transient failure. Retrying it just delays the redirect to setup.
+    retry: (failureCount, error) => {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 404) return false;
+      return failureCount < 2;
+    },
   });
 
   useEffect(() => {
@@ -78,6 +86,22 @@ export function useQuizProfileQuery(userId: number) {
       setProfile(query.data.profile);
     }
   }, [query.data, setProfile]);
+
+  // Reconcile against the server. The persisted store is the only thing that
+  // decides whether a user is "registered", and nothing previously corrected it
+  // when the server disagreed — so a stale flag survived indefinitely, leaving
+  // the user inside the app with an identity the backend has never heard of.
+  useEffect(() => {
+    const status = (query.error as { response?: { status?: number } } | null)?.response?.status;
+    if (status === 404) {
+      clearProfile();
+      try {
+        sessionStorage.removeItem("userProfile");
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [query.error, clearProfile]);
 
   return query;
 }
