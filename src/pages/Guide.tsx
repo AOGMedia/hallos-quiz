@@ -1,4 +1,4 @@
-import { HelpCircle, Gamepad2, Compass, Smartphone, Wallet, ArrowRightLeft, Trophy, Zap, CheckCircle } from "lucide-react";
+import { HelpCircle, Gamepad2, Compass, Smartphone, Wallet, ArrowRightLeft, Trophy, Zap, CheckCircle, Swords, Users } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import { MorganGuideBook } from "@/components/ui/3d-book-testimonial";
 
@@ -39,6 +39,18 @@ const MORGAN_GUIDE_PAGES = [
     subtitle: "The Winner's Economy",
     text: "Matches are peer-to-peer. When you put up 100 MP, you're competing for a 200 MP pot. After the house commission, the winner takes it all!",
     icon: <Trophy className="w-8 h-8 text-accent" />
+  },
+  {
+    title: "6. Tournaments",
+    subtitle: "Many players, one champion",
+    text: "• Register before the deadline — your entry fee joins the pool. \n• Sit back — you don't need to stay on this screen, you're pulled straight into your match or round the moment it starts. \n• Survive the rounds. \n• Top 3 split the pool: 🥇 60% · 🥈 30% · 🥉 10%.",
+    icon: <Users className="w-8 h-8 text-accent" />
+  },
+  {
+    title: "7. Tournament Formats",
+    subtitle: "Pick your battlefield",
+    text: "• Classic: Everyone answers the same questions — highest score wins. \n• Speed Run: Same questions, fastest correct answers wins. \n• Knockout: 1-on-1 bracket — lose your match, you're out. Odd number of players? Someone gets a free bye to the next round. \n• Battle Royale: Everyone plays each round, lowest scorers are eliminated until only the champion remains.",
+    icon: <Swords className="w-8 h-8 text-accent" />
   }
 ];
 

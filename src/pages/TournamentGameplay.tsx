@@ -22,6 +22,7 @@ import { FORMAT_LABELS, type TournamentFormat } from "@/lib/api/tournament";
 import { useForfeitTournament, useTournamentRound } from "@/hooks/useTournament";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { getMyUserId } from "@/lib/auth/currentUser";
+import { soundEngine } from "@/lib/soundEngine";
 
 type GameState = "playing" | "waiting_for_others" | "round_over" | "eliminated";
 type AnswerState = "default" | "selected" | "correct" | "wrong" | "opponent-wrong";
@@ -177,6 +178,9 @@ const TournamentGameplay = () => {
     return onRoundEndedScoped((payload) => {
       if (payload.tournamentId !== round.tournamentId) return;
       if (payload.roundNumber !== round.roundNumber) return;
+      const myId = getMyUserId();
+      const myResult = myId != null ? payload.results.find((r) => r.userId === myId) : undefined;
+      soundEngine.play(myResult?.rank != null && myResult.rank <= 3 ? "win" : "click");
       setRoundResult(payload);
       setGameState("round_over");
     });
@@ -190,6 +194,7 @@ const TournamentGameplay = () => {
     return onParticipantEliminated((payload) => {
       if (payload.tournamentId !== round.tournamentId) return;
       if (payload.userId !== getMyUserId()) return;
+      soundEngine.play("loss");
       setGameState("eliminated");
     });
   }, [round]);
@@ -270,6 +275,7 @@ const TournamentGameplay = () => {
           handleTimeUp();
           return 0;
         }
+        if (prev === 4) soundEngine.play("countdown"); // fires once, at the 3-seconds-left mark
         return prev - 1;
       });
     }, 1000);
@@ -278,6 +284,7 @@ const TournamentGameplay = () => {
 
   const handleAnswerSelect = (value: string) => {
     if (isAnswerRevealed || selectedAnswer) return;
+    soundEngine.play("click");
     setSelectedAnswer(value);
     selectedAnswerRef.current = value;
     setIsAnswerRevealed(true);
