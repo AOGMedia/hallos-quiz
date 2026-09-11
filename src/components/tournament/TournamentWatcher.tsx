@@ -8,6 +8,8 @@ import { leaveTournament } from "@/lib/socket/tournamentEmitters";
 import { getToken } from "@/store/authStore";
 import { getMyUserId } from "@/lib/auth/currentUser";
 import { TOURNAMENT_KEYS } from "@/hooks/useTournament";
+import { useTournamentStore } from "@/store/tournamentStore";
+import { soundEngine } from "@/lib/soundEngine";
 import type {
   ChallengeAcceptedPayload,
   RoundStartedPayload,
@@ -164,13 +166,27 @@ const TournamentWatcher = () => {
       if (payload.placement === undefined) return;
 
       if (payload.placement === 1) {
+        soundEngine.play("win");
         toast.success(`🏆 You won the tournament! +${payload.prizeWon ?? 0} MP`);
       } else if (payload.placement <= 3) {
+        soundEngine.play("win");
         toast.success(`Tournament over — you placed #${payload.placement}! +${payload.prizeWon ?? 0} MP`);
       } else {
+        soundEngine.play("loss");
         toast.info("Tournament over — better luck next time!");
       }
       exitTournament(payload.tournamentId);
+
+      // A toast alone was easy to miss entirely if the user wasn't looking at
+      // the screen right then, and even if seen it auto-dismisses with no
+      // trace — there was no route to a "you won, here's your placement and
+      // prize" screen at all. TournamentLeaderboardView's final-result banner
+      // already exists and is good; it just needed something to send a
+      // just-finished player there automatically instead of leaving them
+      // wherever they happened to be.
+      useTournamentStore.getState().selectTournament(payload.tournamentId);
+      useTournamentStore.getState().setView("leaderboard");
+      navigate("/tournament");
     };
 
     const handleProposalApproved = (payload: TournamentProposalReviewedPayload) => {

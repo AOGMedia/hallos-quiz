@@ -1,12 +1,17 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, Zap, Users, Clock, Trophy, AlertCircle, CheckCircle2, BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import FormatBadge from "./FormatBadge";
 import { useTournamentDetail, useRegisterTournament, useUnregisterTournament } from "@/hooks/useTournament";
 import { useTournamentStore } from "@/store/tournamentStore";
 import { FORMAT_LABELS } from "@/lib/api/tournament";
 import { joinTournament } from "@/lib/socket/tournamentEmitters";
 import { formatMPWithUnit, toAmount } from "@/lib/helpers/formatMP";
+import { soundEngine } from "@/lib/soundEngine";
 
 interface TournamentDetailViewProps {
   tournamentId: string;
@@ -45,8 +50,12 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
     joinTournament(t.id);
   }, [t]);
 
+  const [showConfirm, setShowConfirm] = useState(false);
+
   const handleRegister = () => {
-    registerMutation.mutate(undefined);
+    registerMutation.mutate(undefined, {
+      onSuccess: () => { setShowConfirm(false); soundEngine.play("registered"); },
+    });
   };
 
   const handleUnregister = () => {
@@ -118,7 +127,7 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
                 <h2 className="text-lg sm:text-2xl font-bold text-foreground mb-1">{t.name}</h2>
                 <p className="text-xs sm:text-sm text-muted-foreground">{t.description}</p>
               </div>
-              <FormatBadge format={t.format} />
+              <FormatBadge format={t.format} withExplainer />
             </div>
 
             {/* Key stats */}
@@ -304,7 +313,7 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
 
             {t.status === "open" && !isRegistered && (
               <Button
-                onClick={handleRegister}
+                onClick={() => setShowConfirm(true)}
                 disabled={
                   registerMutation.isPending ||
                   (t.maxParticipants != null && data.participantCount >= t.maxParticipants)
@@ -326,6 +335,54 @@ const TournamentDetailView = ({ tournamentId, onBack, onViewLeaderboard }: Tourn
               </Button>
             )}
           </div>
+
+          {/* One-tap registration with no summary or confirmation made it too
+              easy to commit real MP without meaning to, and gave no sense of
+              what happens after — this restates exactly what's being agreed
+              to and what to expect next before the mutation actually fires. */}
+          <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+            <AlertDialogContent className="bg-card border-border">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-foreground">Confirm registration</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="text-muted-foreground space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Tournament</span>
+                      <span className="text-foreground font-medium">{t.name}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Format</span>
+                      <span className="text-foreground font-medium">{FORMAT_LABELS[t.format]}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Entry fee</span>
+                      <span className="text-foreground font-medium">{formatMPWithUnit(t.entryFee)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Starts</span>
+                      <span className="text-foreground font-medium">{fmt(t.startTime)}</span>
+                    </div>
+                    <p className="text-xs pt-1 border-t border-border">
+                      {toAmount(t.entryFee) > 0
+                        ? `${formatMPWithUnit(t.entryFee)} will be deducted now. It's refunded in full if you unregister before the deadline, or if the tournament doesn't fill and gets cancelled.`
+                        : "This tournament is free to enter."}
+                      {" "}You don't need to keep the app open — you'll be pulled straight into your match or round the moment it starts.
+                    </p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={registerMutation.isPending}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => { e.preventDefault(); handleRegister(); }}
+                  disabled={registerMutation.isPending}
+                  className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                >
+                  {registerMutation.isPending ? "Registering…" : "Confirm & Register"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
     </div>

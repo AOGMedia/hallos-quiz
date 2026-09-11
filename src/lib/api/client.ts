@@ -18,7 +18,7 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const status = error.response?.status;
     // Two response shapes are in play: controllers return `{ success, message }`
     // directly, while anything routed through quizErrorHandler returns
@@ -33,14 +33,29 @@ apiClient.interceptors.response.use(
       "Request failed";
 
     if (status === 401) {
-      // Token missing or expired — clear session and send back to main platform.
-      // The main platform's auth guard will redirect to signin and preserve
-      // the destination so the user lands back on the quiz after signing in.
+      // A single 401 isn't necessarily a genuinely expired/invalid token — a
+      // brief backend hiccup or a deploy-time blip can produce one for an
+      // otherwise perfectly good session. Hard-logging out on the very first
+      // 401 (the old behavior) short-circuited before React Query's own
+      // retry logic ever got a chance to run, so a legitimately signed-in
+      // user got kicked to sign-in for a transient failure that would have
+      // succeeded a moment later. Retry the exact same request once — only
+      // treat it as a real auth failure if the retry *also* 401s.
+      if (error.config && !error.config._retriedAfter401) {
+        error.config._retriedAfter401 = true;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return apiClient(error.config);
+      }
+
+      // Genuine auth failure — clear session and send back to main platform,
+      // preserving where the user was so they land back here (not just the
+      // bare dashboard) after signing in again.
       sessionStorage.removeItem("auth_token");
       sessionStorage.removeItem("userProfile");
       sessionStorage.removeItem("currentMatch");
       sessionStorage.removeItem("matchEnded");
-      window.location.href = "https://www.hallos.net/dashboard/games";
+      const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.href = `https://www.hallos.net/dashboard/games?redirect=${returnTo}`;
       return new Promise(() => {}); // prevent further error propagation
     }
 
