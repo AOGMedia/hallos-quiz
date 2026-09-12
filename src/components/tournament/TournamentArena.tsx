@@ -1,11 +1,14 @@
-import { useState } from "react";
-import { History, Plus, Zap, Swords, Timer, Crown, GraduationCap, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { History, Plus, Zap, Swords, Timer, Crown, GraduationCap, RefreshCw, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import TournamentCard from "./TournamentCard";
+import TournamentIntroWalkthrough from "./TournamentIntroWalkthrough";
 import { useTournaments } from "@/hooks/useTournament";
 import { FORMAT_LABELS, type Tournament, type TournamentFormat, type TournamentStatus } from "@/lib/api/tournament";
 import FormatBadge from "./FormatBadge";
 import { formatMPWithUnit } from "@/lib/helpers/formatMP";
+import { getMyUserId } from "@/lib/auth/currentUser";
+import { hasSeenTournamentIntro, useTournamentOnboardingStore } from "@/store/tournamentOnboardingStore";
 import tournamentBg from "@/assets/tournament-bg.png";
 
 type FilterFormat = "all" | TournamentFormat;
@@ -59,6 +62,21 @@ const TournamentArena = ({ onHistoryClick, onHostClick, onSelectTournament }: To
   const [activeFilter, setActiveFilter] = useState<FilterFormat>("all");
   const [activeStatus, setActiveStatus] = useState<FilterStatus>("open");
   const [page, setPage] = useState(1);
+  const [showIntro, setShowIntro] = useState(false);
+
+  // Auto-open once per account the first time this screen is reached — this
+  // is the actual fix for "tournament navigation isn't straightforward": an
+  // explanation that meets a first-time player here, rather than one they'd
+  // have to already know to go looking for in the Guide.
+  useEffect(() => {
+    if (!hasSeenTournamentIntro(getMyUserId())) setShowIntro(true);
+  }, []);
+
+  const closeIntro = () => {
+    setShowIntro(false);
+    const userId = getMyUserId();
+    if (userId) useTournamentOnboardingStore.getState().markSeen(userId);
+  };
 
   const { data, isLoading, isError, error, refetch, isFetching } = useTournaments({
     ...(activeFilter !== "all" ? { format: activeFilter } : {}),
@@ -85,6 +103,11 @@ const TournamentArena = ({ onHistoryClick, onHostClick, onSelectTournament }: To
           </p>
         </div>
         <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
+          <Button variant="outline" onClick={() => setShowIntro(true)}
+            className="bg-card border-border hover:bg-muted flex-1 sm:flex-none text-xs sm:text-sm" size="sm">
+            <HelpCircle className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+            <span className="hidden sm:inline">How it works</span>
+          </Button>
           <Button variant="outline" onClick={onHistoryClick}
             className="bg-card border-border hover:bg-muted flex-1 sm:flex-none text-xs sm:text-sm" size="sm">
             <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" /> History
@@ -95,6 +118,8 @@ const TournamentArena = ({ onHistoryClick, onHostClick, onSelectTournament }: To
           </Button>
         </div>
       </div>
+
+      <TournamentIntroWalkthrough open={showIntro} onFinish={closeIntro} />
 
       {/* Featured banner — always rendered. Filled with the highest-value real
           tournament when there is one; otherwise the same banner carries an
